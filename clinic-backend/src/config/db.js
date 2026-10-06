@@ -1,5 +1,6 @@
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 const { Pool } = require('pg');
-require('dotenv').config();
 
 const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
@@ -7,21 +8,14 @@ const pool = new Pool({
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  max: 10,                  
-  idleTimeoutMillis: 30000, 
-  connectionTimeoutMillis: 2000,
 });
 
-pool.connect((err, client, release) => {
+pool.query('SELECT current_database()', (err, res) => {
   if (err) {
-    console.error('Failed to connect to PostgreSQL container:', err.stack);
+    console.error('Database connection error:', err.message);
   } else {
-    console.log('Connected to PostgreSQL database successfully!');
-    release(); 
+    console.log('Connected to database:', res.rows[0].current_database);
   }
 });
 
-module.exports = {
-  query: (text, params) => pool.query(text, params),
-  pool,
-};
+module.exports = pool;
