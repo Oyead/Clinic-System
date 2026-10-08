@@ -1,4 +1,7 @@
 const adminModel = require('../models/adminModel')
+const { hashPassword } = require('../utils/password');
+
+const VALID_ROLES = ['admin', 'doctor', 'receptionist', 'patient'];
 
 const addClinic = async(req,res)=>{
     try {
@@ -18,14 +21,26 @@ const addClinic = async(req,res)=>{
 
 const addDoctor = async (req, res) => {
   try {
-    const { user_id, clinic_id, specialization } = req.body;
-    if (!user_id || !clinic_id || !specialization) {
+    const { user_id, clinic_id, name, phone_number, specialization } = req.body;
+    if (!user_id || !clinic_id || !name || !specialization) {
       return res.status(400).json({ 
-        error: 'user_id, clinic_id, and specialization are required' 
+        error: 'user_id, clinic_id, name, and specialization are required' 
       });
     }
 
-    const doctor = await adminModel.createDoctor({ user_id, clinic_id, specialization });
+    const user = await adminModel.getUserById(user_id);
+    if (!user) {
+      return res.status(400).json({ 
+        error: 'Referenced user_id does not exist' 
+      });
+    }
+    if (user.role !== 'doctor') {
+      return res.status(400).json({ 
+        error: "user_id must reference a user with role 'doctor'" 
+      });
+    }
+
+    const doctor = await adminModel.createDoctor({ user_id, clinic_id, name, phone_number, specialization });
     
     res.status(201).json({ 
       message: 'Doctor created successfully', 
@@ -34,7 +49,13 @@ const addDoctor = async (req, res) => {
   } catch (error) {
     if (error.code === '23503') {
       return res.status(400).json({ 
-        error: 'Referenced user_id or clinic_id does not exist' 
+        error: 'Referenced user_id or clinic_id does not exist'
+      });
+    }
+
+    if (error.code === '23502') {
+      return res.status(400).json({ 
+        error: 'A required field is missing'
       });
     }
 
@@ -74,8 +95,58 @@ const assignDoctor = async (req, res) => {
   }
 };
 
+const addUser = async (req, res) => {
+  try {
+    const { email, password, role } = req.body;
+
+    if (!email || !password || !role) {
+      return res.status(400).json({ 
+        error: 'email, password, and role are required.' 
+      });
+    }
+
+    if (!VALID_ROLES.includes(role)) {
+      return res.status(400).json({ 
+        error: `role must be one of: ${VALID_ROLES.join(', ')}` 
+      });
+    }
+  
+    const user = await adminModel.createUser({ 
+      email, 
+      password_hash: hashPassword(password), 
+      role 
+    });
+
+    res.status(201).json({ 
+      message: 'User created successfully', 
+      user 
+    });
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({ 
+        error: 'An account with this email already exists' 
+      });
+    }
+
+    if (error.code === '23502') {
+      return res.status(400).json({ 
+        error: 'A required field is missing' 
+      });
+    }
+
+    if (error.code === '22P02') {
+      return res.status(400).json({ 
+        error: 'Invalid value provided' 
+      });
+    }
+
+    res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
   addClinic,
   addDoctor,
   assignDoctor,
+  addUser,
 };

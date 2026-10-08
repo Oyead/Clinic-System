@@ -5,5 +5,6 @@ const adminController = require('../controllers/adminController');
 router.post('/clinics', adminController.addClinic);
 router.post('/doctors', adminController.addDoctor);
 router.put('/doctors/:id/assign', adminController.assignDoctor);
+router.post('/users', adminController.addUser);
 
 module.exports = router;
