@@ -8,5 +8,6 @@ router.get('/mine', requireRole('patient'), appointmentController.listMyAppointm
 router.get('/', requireRole('doctor', 'receptionist', 'admin'), appointmentController.listAppointments);
 router.patch('/:id/approve', requireRole('doctor', 'receptionist', 'admin'), appointmentController.approveAppointment);
 router.patch('/:id/reject', requireRole('doctor', 'receptionist', 'admin'), appointmentController.rejectAppointment);
+router.patch('/:id/cancel', requireAuth, appointmentController.cancelAppointment);
 
 module.exports = router;

@@ -164,7 +164,7 @@ const approveAppointment = async (req, res) => {
   }
 };
 
-const rejectAppointment = async (req, res) => {
+const cancelAppointment = async (req, res) => {
   try {
     const appointment = await appointmentModel.getAppointmentById(req.params.id);
 
@@ -172,18 +172,31 @@ const rejectAppointment = async (req, res) => {
       return res.status(404).json({ error: 'Appointment not found' });
     }
 
-    if (appointment.status !== 'pending') {
-      return res.status(400).json({
-        error: `Only pending appointments can be rejected (current status: ${appointment.status})`,
-      });
+    const apptDate = new Date(appointment.appointment_date);
+    const hoursUntil = (apptDate.getTime() - Date.now()) / 3600000;
+
+    if (req.user.role === 'patient') {
+      const patient = await appointmentModel.getPatientByUserId(req.user.id);
+      if (!patient || Number(appointment.patient_id) !== Number(patient.id)) {
+        return res.status(403).json({ error: 'You do not have permission to cancel this appointment' });
+      }
+
+      if (hoursUntil < 24) {
+        return res.status(400).json({
+          error: 'Cancellations within 24 hours require calling the clinic',
+        });
+      }
+
+      const updated = await appointmentModel.updateAppointmentStatus(appointment.id, 'cancelled');
+      return res.status(200).json({ message: 'Appointment cancelled', appointment: updated });
     }
 
     if (!(await canManageAppointment(req, appointment))) {
-      return res.status(403).json({ error: 'You do not have permission to reject this appointment' });
+      return res.status(403).json({ error: 'You do not have permission to cancel this appointment' });
     }
 
     const updated = await appointmentModel.updateAppointmentStatus(appointment.id, 'cancelled');
-    res.status(200).json({ message: 'Appointment rejected', appointment: updated });
+    res.status(200).json({ message: 'Appointment cancelled', appointment: updated });
   } catch (error) {
     if (error.code === '22P02') {
       return res.status(400).json({ error: 'Invalid ID format provided' });
@@ -198,4 +211,5 @@ module.exports = {
   listAppointments,
   approveAppointment,
   rejectAppointment,
+  cancelAppointment,
 };
