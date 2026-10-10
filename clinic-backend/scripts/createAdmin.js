@@ -4,7 +4,8 @@ require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 const db = require('../src/config/db');
 const { hashPassword } = require('../src/utils/password');
 
-const [email, password] = process.argv.slice(2);
+const [rawEmail, password] = process.argv.slice(2);
+const email = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : rawEmail;
 
 const main = async () => {
   if (!email || !password) {
