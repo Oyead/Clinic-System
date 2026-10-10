@@ -204,15 +204,15 @@ const deactivateUser = async (id, client = db) => {
 };
 
 const createAuditLog = async (
-  { action, target_user_id = null, target_email = null, old_role = null, new_role = null, performed_by = null, appointment_id = null, old_status = null, new_status = null },
+  { action, target_user_id = null, target_email = null, old_role = null, new_role = null, performed_by = null, appointment_id = null, old_status = null, new_status = null, clinic_id = null },
   client = db
 ) => {
   const result = await client.query(
     `INSERT INTO admin_audit_logs
-       (action, target_user_id, target_email, old_role, new_role, performed_by, appointment_id, old_status, new_status)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       (action, target_user_id, target_email, old_role, new_role, performed_by, appointment_id, old_status, new_status, clinic_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      RETURNING *;`,
-    [action, target_user_id, target_email, old_role, new_role, performed_by, appointment_id, old_status, new_status]
+    [action, target_user_id, target_email, old_role, new_role, performed_by, appointment_id, old_status, new_status, clinic_id]
   );
   return result.rows[0];
 };
