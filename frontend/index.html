@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clinic System</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="container">
+    <h1>Clinic System</h1>
+
+    <div class="tabs">
+      <button id="tab-signup" class="tab active" type="button">Sign up</button>
+      <button id="tab-signin" class="tab" type="button">Sign in</button>
+    </div>
+
+    <p id="message" class="message" aria-live="polite"></p>
+
+    <!-- Sign up: creates a patient account via POST /api/v1/auth/signup -->
+    <form id="form-signup" class="card" novalidate>
+      <label>
+        Email
+        <input id="signup-email" type="email" name="email" required autocomplete="email" />
+      </label>
+      <label>
+        Password (min 8 characters)
+        <input id="signup-password" type="password" name="password" required minlength="8" autocomplete="new-password" />
+      </label>
+      <label>
+        Full name (optional, needed for booking appointments)
+        <input id="signup-name" type="text" name="name" autocomplete="name" />
+      </label>
+      <button type="submit">Create account</button>
+    </form>
+
+    <!-- Sign in: verifies credentials via POST /api/v1/auth/login -->
+    <form id="form-signin" class="card hidden" novalidate>
+      <label>
+        Email
+        <input id="signin-email" type="email" name="email" required autocomplete="email" />
+      </label>
+      <label>
+        Password
+        <input id="signin-password" type="password" name="password" required autocomplete="current-password" />
+      </label>
+      <button type="submit">Sign in</button>
+    </form>
+
+    <!-- Shown after a successful sign in -->
+    <section id="welcome" class="card hidden">
+      <h2 id="welcome-title">Signed in</h2>
+      <p id="welcome-detail"></p>
+      <button id="btn-signout" type="button">Sign out</button>
+    </section>
+
+    <!-- Admin panel: exercises the admin endpoints. Visible to admins only. -->
+    <section id="admin" class="card hidden">
+      <h2>Admin endpoints</h2>
+      <div class="row">
+        <button id="btn-users" type="button">Load users</button>
+        <button id="btn-audit" type="button">Load audit log</button>
+      </div>
+      <h3>Users <span class="hint">GET /api/v1/admin/users</span></h3>
+      <div class="profile-fields">
+        <p class="hint">Only needed when setting a role to doctor/receptionist (creates their staff profile):</p>
+        <label>
+          Clinic
+          <select id="role-clinic"></select>
+        </label>
+        <label>
+          Staff name
+          <input id="role-name" type="text" placeholder="e.g. Jane Doe" />
+        </label>
+        <label>
+          Specialization (doctors only)
+          <input id="role-spec" type="text" placeholder="e.g. cardiology" />
+        </label>
+      </div>
+      <div id="users"><p class="muted">Not loaded yet.</p></div>
+      <h3>Audit log <span class="hint">GET /api/v1/admin/audit-logs</span></h3>
+      <div id="audit"><p class="muted">Not loaded yet.</p></div>
+    </section>
+
+    <!-- Staff panel: appointment approvals. Visible to doctors/receptionists only. -->
+    <section id="staff" class="card hidden">
+      <h2>Appointment requests</h2>
+      <div class="row">
+        <button id="btn-queue" type="button">Load queue</button>
+      </div>
+      <p class="hint">GET /api/v1/appointments/ &nbsp;·&nbsp; approve: PATCH /api/v1/appointments/:id/approve &nbsp;·&nbsp; reject: PATCH /api/v1/appointments/:id/reject</p>
+      <div id="queue"><p class="muted">Not loaded yet.</p></div>
+    </section>
+
+    <!-- Patient panel: exercises the patient endpoints. Visible to patients only. -->
+    <section id="patient" class="card hidden">
+      <h2>My appointments</h2>
+      <div class="row">
+        <button id="btn-mine" type="button">Load my appointments</button>
+      </div>
+      <p class="hint">GET /api/v1/appointments/mine &nbsp;·&nbsp; cancel: PATCH /api/v1/appointments/:id/cancel</p>
+      <div id="mine"><p class="muted">Not loaded yet.</p></div>
+
+      <h2>Book appointment</h2>
+      <p class="hint">POST /api/v1/appointments/</p>
+      <form id="form-book" novalidate>
+        <label>
+          Clinic
+          <select id="book-clinic"></select>
+        </label>
+        <label>
+          Doctor
+          <select id="book-doctor"></select>
+        </label>
+        <label>
+          Date &amp; time (must be in the future)
+          <input id="book-date" type="datetime-local" required />
+        </label>
+        <label>
+          Reason (optional)
+          <input id="book-reason" type="text" />
+        </label>
+        <button type="submit">Request appointment</button>
+      </form>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
