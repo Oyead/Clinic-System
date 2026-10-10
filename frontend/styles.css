@@ -91,6 +91,42 @@ button[type="submit"],
   margin-top: 16px;
 }
 
+#admin select,
+#admin input,
+#staff select,
+#staff input {
+  padding: 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+#form-clinic,
+#form-create-user,
+#form-doctor,
+#form-doctor-assign,
+#form-recep,
+#form-recep-assign,
+#form-patient-link {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  margin: 8px 0;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+}
+
+#form-clinic label,
+#form-create-user label,
+#form-doctor label,
+#form-doctor-assign label,
+#form-recep label,
+#form-recep-assign label,
+#form-patient-link label {
+  font-size: 0.85rem;
+}
+
 .row {
   display: flex;
   gap: 8px;
@@ -187,7 +223,58 @@ button[type="submit"],
   margin-top: 16px;
 }
 
-#staff .approve {
+#owner {
+  margin-top: 16px;
+}
+
+#owner select,
+#owner input {
+  padding: 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+#form-owner-staff {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  margin: 8px 0;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+}
+
+#form-owner-staff label {
+  font-size: 0.85rem;
+}
+
+#owner .remove {
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: #b91c1c;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  margin: 8px 0;
+}
+
+.report-table th,
+.report-table td {
+  border: 1px solid #e2e8f0;
+  padding: 6px 8px;
+  text-align: left;
+}
+
+#staff .approve,
+#admin .approve,
+#owner .approve {
   padding: 6px 10px;
   border: none;
   border-radius: 6px;
@@ -196,7 +283,9 @@ button[type="submit"],
   cursor: pointer;
 }
 
-#staff .reject {
+#staff .reject,
+#admin .reject,
+#owner .reject {
   padding: 6px 10px;
   border: none;
   border-radius: 6px;
