@@ -17,11 +17,13 @@ const db = require('./src/config/db');
 const authRoutes = require('./src/routes/authRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
 const appointmentRoutes = require('./src/routes/appointmentRoutes');
-const { requireAuth, requireAdmin } = require('./src/middleware/auth');
+const ownerRoutes = require('./src/routes/ownerRoutes');
+const { requireAuth, requireAdmin, requireRole } = require('./src/middleware/auth');
 
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/admin', requireAuth, requireAdmin, adminRoutes);
 app.use('/api/v1/appointments', requireAuth, appointmentRoutes);
+app.use('/api/v1/owner', requireAuth, requireRole('owner'), ownerRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'API operational' });
