@@ -9,6 +9,9 @@ if (!process.env.JWT_SECRET) {
 const app = express();
 app.use(express.json());
 
+// Serve the plain HTML/CSS frontend (../frontend) on the same origin.
+app.use(express.static(require('path').resolve(__dirname, '../frontend')));
+
 const db = require('./src/config/db');
 
 const authRoutes = require('./src/routes/authRoutes');
@@ -25,6 +28,19 @@ app.get('/api/health', (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
+
+  // Bootstrap: on a brand-new deployment with zero admins, create the
+  // Super Admin from SUPER_ADMIN_EMAIL / SUPER_ADMIN_PASSWORD.
+  // Never blocks startup and never overwrites existing admins.
+  try {
+    const { ensureSuperAdmin } = require('./src/utils/bootstrapAdmin');
+    const result = await ensureSuperAdmin();
+    if (result.created) {
+      console.log('Bootstrap: Super Admin created from .env credentials.');
+    }
+  } catch (error) {
+    console.warn('Bootstrap: Super Admin seed skipped:', error.message);
+  }
 });
