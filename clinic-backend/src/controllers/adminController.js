@@ -1,8 +1,9 @@
 const adminModel = require('../models/adminModel')
+const ownerModel = require('../models/ownerModel')
 const { hashPassword } = require('../utils/password');
 const db = require('../config/db');
 
-const VALID_ROLES = ['admin', 'doctor', 'receptionist', 'patient'];
+const VALID_ROLES = ['admin', 'doctor', 'receptionist', 'patient', 'owner'];
 
 const addClinic = async(req,res)=>{
     try {
@@ -131,7 +132,13 @@ const addUser = async (req, res) => {
       });
     }
 
-    if ((role === 'doctor' || role === 'receptionist') && !(await adminModel.getClinicById(req.body.clinic_id))) {
+    if (role === 'owner' && !req.body.clinic_id) {
+      return res.status(400).json({
+        error: 'clinic_id is required when creating an owner account (links them to their clinic)'
+      });
+    }
+
+    if ((role === 'doctor' || role === 'receptionist' || role === 'owner') && !(await adminModel.getClinicById(req.body.clinic_id))) {
       return res.status(400).json({
         error: 'The provided clinic_id does not exist'
       });
@@ -175,6 +182,10 @@ const addUser = async (req, res) => {
         }, client);
       }
 
+      if (role === 'owner') {
+        await ownerModel.assignOwner(created.id, req.body.clinic_id, client);
+      }
+
       await adminModel.createAuditLog({
         action: 'admin_create_user',
         target_user_id: created.id,
@@ -182,6 +193,7 @@ const addUser = async (req, res) => {
         old_role: null,
         new_role: created.role,
         performed_by: req.user ? req.user.id : null,
+        clinic_id: role === 'owner' ? req.body.clinic_id : null,
       }, client);
 
       return { user: created, patient, doctor, receptionist };
@@ -441,6 +453,22 @@ const updateUserRole = async (req, res) => {
       });
     }
 
+    // Promotions into (or out of) the owner role manage the clinic link.
+    let assignOwnerClinic = null;
+    if (newRole === 'owner') {
+      if (!req.body.clinic_id) {
+        return res.status(400).json({
+          error: 'clinic_id is required when promoting to owner (links them to their clinic)'
+        });
+      }
+      if (!(await adminModel.getClinicById(req.body.clinic_id))) {
+        return res.status(400).json({
+          error: 'The provided clinic_id does not exist'
+        });
+      }
+      assignOwnerClinic = req.body.clinic_id;
+    }
+
     const result = await db.withTransaction(async (client) => {
       const row = await adminModel.updateUserRole(target.id, newRole, client);
 
@@ -472,7 +500,16 @@ const updateUserRole = async (req, res) => {
         old_role: target.role,
         new_role: newRole,
         performed_by: req.user.id,
+        clinic_id: assignOwnerClinic,
       }, client);
+
+      if (assignOwnerClinic) {
+        await ownerModel.assignOwner(target.id, assignOwnerClinic, client);
+      }
+      if (target.role === 'owner' && newRole !== 'owner') {
+        await ownerModel.removeAllOwnerClinics(target.id, client);
+      }
+
       return { user: row, doctor, receptionist };
     });
 
