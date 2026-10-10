@@ -57,11 +57,85 @@
     <!-- Admin panel: exercises the admin endpoints. Visible to admins only. -->
     <section id="admin" class="card hidden">
       <h2>Admin endpoints</h2>
+
+      <h3>Clinics <span class="hint">POST /api/v1/admin/clinics</span></h3>
+      <form id="form-clinic" class="profile-fields" novalidate>
+        <label>
+          Name
+          <input id="clinic-name" type="text" required placeholder="e.g. Downtown Clinic" />
+        </label>
+        <label>
+          Phone number
+          <input id="clinic-phone" type="text" required placeholder="e.g. +1-555-0100" />
+        </label>
+        <label>
+          Address
+          <input id="clinic-address" type="text" required placeholder="e.g. 123 Main St" />
+        </label>
+        <label>
+          Email
+          <input id="clinic-email" type="email" required placeholder="e.g. clinic@example.com" />
+        </label>
+        <button type="submit">Create clinic</button>
+      </form>
+      <div id="clinics"><p class="muted">Clinics appear in the dropdowns after creation.</p></div>
+
+      <h3>Create user <span class="hint">POST /api/v1/admin/users</span></h3>
+      <form id="form-create-user" class="profile-fields" novalidate>
+        <label>
+          Email
+          <input id="new-user-email" type="email" required />
+        </label>
+        <label>
+          Password (min 8 characters)
+          <input id="new-user-password" type="password" required minlength="8" />
+        </label>
+        <label>
+          Role
+          <select id="new-user-role">
+            <option value="patient">patient</option>
+            <option value="doctor">doctor</option>
+            <option value="receptionist">receptionist</option>
+            <option value="owner">owner</option>
+            <option value="admin">admin</option>
+          </select>
+        </label>
+        <label>
+          Clinic ID (doctor / receptionist / owner)
+          <input id="new-user-clinic" type="number" min="1" placeholder="e.g. 1" />
+        </label>
+        <label>
+          Full name (patient / doctor / receptionist)
+          <input id="new-user-name" type="text" placeholder="e.g. Jane Doe" />
+        </label>
+        <label>
+          Phone (optional)
+          <input id="new-user-phone" type="text" />
+        </label>
+        <label>
+          Specialization (doctors only)
+          <input id="new-user-spec" type="text" placeholder="e.g. cardiology" />
+        </label>
+        <button type="submit">Create user</button>
+      </form>
+
+      <h3>Users <span class="hint">GET /api/v1/admin/users · PATCH /api/v1/admin/users/:id/role · DELETE /api/v1/admin/users/:id</span></h3>
       <div class="row">
         <button id="btn-users" type="button">Load users</button>
         <button id="btn-audit" type="button">Load audit log</button>
       </div>
-      <h3>Users <span class="hint">GET /api/v1/admin/users</span></h3>
+      <div class="row" style="margin-top:8px">
+        <label style="flex:1">Role filter
+          <select id="users-role-filter">
+            <option value="">all roles</option>
+            <option value="admin">admin</option>
+            <option value="doctor">doctor</option>
+            <option value="receptionist">receptionist</option>
+            <option value="patient">patient</option>
+            <option value="owner">owner</option>
+          </select>
+        </label>
+      </div>
       <div class="profile-fields">
         <p class="hint">Only needed when setting a role to doctor/receptionist (creates their staff profile):</p>
         <label>
@@ -78,18 +152,207 @@
         </label>
       </div>
       <div id="users"><p class="muted">Not loaded yet.</p></div>
+
+      <h3>Doctors <span class="hint">POST /api/v1/admin/doctors · PUT /api/v1/admin/doctors/:id/assign</span></h3>
+      <form id="form-doctor" class="profile-fields" novalidate>
+        <label>
+          User ID (must have role doctor)
+          <input id="doctor-user-id" type="number" min="1" required />
+        </label>
+        <label>
+          Clinic ID
+          <input id="doctor-clinic-id" type="number" min="1" required />
+        </label>
+        <label>
+          Name
+          <input id="doctor-name" type="text" required />
+        </label>
+        <label>
+          Phone (optional)
+          <input id="doctor-phone" type="text" />
+        </label>
+        <label>
+          Specialization
+          <input id="doctor-spec" type="text" required />
+        </label>
+        <button type="submit">Create doctor profile</button>
+      </form>
+      <form id="form-doctor-assign" class="profile-fields" novalidate>
+        <label>
+          Doctor ID
+          <input id="doctor-assign-id" type="number" min="1" required />
+        </label>
+        <label>
+          New clinic ID
+          <input id="doctor-assign-clinic" type="number" min="1" required />
+        </label>
+        <button type="submit">Assign doctor to clinic</button>
+      </form>
+
+      <h3>Receptionists <span class="hint">POST /api/v1/admin/receptionists · PUT /api/v1/admin/receptionists/:id/assign</span></h3>
+      <form id="form-recep" class="profile-fields" novalidate>
+        <label>
+          User ID (must have role receptionist)
+          <input id="recep-user-id" type="number" min="1" required />
+        </label>
+        <label>
+          Clinic ID
+          <input id="recep-clinic-id" type="number" min="1" required />
+        </label>
+        <label>
+          Name
+          <input id="recep-name" type="text" required />
+        </label>
+        <label>
+          Phone (optional)
+          <input id="recep-phone" type="text" />
+        </label>
+        <button type="submit">Create receptionist profile</button>
+      </form>
+      <form id="form-recep-assign" class="profile-fields" novalidate>
+        <label>
+          Receptionist ID
+          <input id="recep-assign-id" type="number" min="1" required />
+        </label>
+        <label>
+          New clinic ID
+          <input id="recep-assign-clinic" type="number" min="1" required />
+        </label>
+        <button type="submit">Assign receptionist to clinic</button>
+      </form>
+
+      <h3>Patients <span class="hint">GET /api/v1/admin/patients · PUT /api/v1/admin/patients/:id/link-user</span></h3>
+      <div class="row">
+        <button id="btn-patients" type="button">Load patients</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <label style="flex:1;flex-direction:row;align-items:center;gap:8px">
+          <input id="patients-unlinked" type="checkbox" style="width:auto" /> Only unlinked
+        </label>
+      </div>
+      <div id="patients"><p class="muted">Not loaded yet.</p></div>
+      <form id="form-patient-link" class="profile-fields" novalidate>
+        <label>
+          Patient ID
+          <input id="patient-link-id" type="number" min="1" required />
+        </label>
+        <label>
+          User ID (must have role patient)
+          <input id="patient-link-user" type="number" min="1" required />
+        </label>
+        <button type="submit">Link patient to user</button>
+      </form>
+
       <h3>Audit log <span class="hint">GET /api/v1/admin/audit-logs</span></h3>
       <div id="audit"><p class="muted">Not loaded yet.</p></div>
+
+      <h3>All appointments <span class="hint">GET /api/v1/appointments/ (admin sees all)</span></h3>
+      <div class="row">
+        <label style="flex:1">Status filter
+          <select id="admin-appt-status">
+            <option value="">all statuses</option>
+            <option value="pending">pending</option>
+            <option value="scheduled">scheduled</option>
+            <option value="completed">completed</option>
+            <option value="cancelled">cancelled</option>
+            <option value="no_show">no_show</option>
+          </select>
+        </label>
+        <button id="btn-admin-queue" type="button" style="align-self:flex-end">Load appointments</button>
+      </div>
+      <p class="hint">approve: PATCH /api/v1/appointments/:id/approve · reject: PATCH /api/v1/appointments/:id/reject · cancel: PATCH /api/v1/appointments/:id/cancel</p>
+      <div id="admin-queue"><p class="muted">Not loaded yet.</p></div>
     </section>
 
     <!-- Staff panel: appointment approvals. Visible to doctors/receptionists only. -->
     <section id="staff" class="card hidden">
       <h2>Appointment requests</h2>
       <div class="row">
-        <button id="btn-queue" type="button">Load queue</button>
+        <label style="flex:1">Status filter
+          <select id="staff-status">
+            <option value="">all statuses</option>
+            <option value="pending">pending</option>
+            <option value="scheduled">scheduled</option>
+            <option value="completed">completed</option>
+            <option value="cancelled">cancelled</option>
+            <option value="no_show">no_show</option>
+          </select>
+        </label>
+        <button id="btn-queue" type="button" style="align-self:flex-end">Load queue</button>
       </div>
-      <p class="hint">GET /api/v1/appointments/ &nbsp;·&nbsp; approve: PATCH /api/v1/appointments/:id/approve &nbsp;·&nbsp; reject: PATCH /api/v1/appointments/:id/reject</p>
+      <p class="hint">GET /api/v1/appointments/ &nbsp;·&nbsp; approve: PATCH /api/v1/appointments/:id/approve &nbsp;·&nbsp; reject: PATCH /api/v1/appointments/:id/reject &nbsp;·&nbsp; cancel: PATCH /api/v1/appointments/:id/cancel</p>
       <div id="queue"><p class="muted">Not loaded yet.</p></div>
+      <h3>Booking reference <span class="hint">GET /api/v1/appointments/booking-options</span></h3>
+      <div class="row">
+        <button id="btn-staff-options" type="button">Load clinics &amp; doctors</button>
+      </div>
+      <div id="staff-options"><p class="muted">Not loaded yet.</p></div>
+    </section>
+
+    <!-- Owner panel: my clinics, staff, queue and reports. Visible to owners only. -->
+    <section id="owner" class="card hidden">
+      <h2>My clinics</h2>
+      <div class="row">
+        <select id="owner-clinic"></select>
+        <button id="btn-owner-load" type="button">Load</button>
+      </div>
+      <p class="hint">GET /api/v1/owner/clinics</p>
+
+      <h3>Staff <span class="hint">GET/POST /api/v1/owner/clinics/:id/staff</span></h3>
+      <div id="owner-staff"><p class="muted">Not loaded yet.</p></div>
+      <form id="form-owner-staff" novalidate>
+        <label>
+          Email
+          <input id="owner-staff-email" type="email" required />
+        </label>
+        <label>
+          Password (min 8 characters)
+          <input id="owner-staff-password" type="password" required minlength="8" />
+        </label>
+        <label>
+          Role
+          <select id="owner-staff-role">
+            <option value="doctor">doctor</option>
+            <option value="receptionist">receptionist</option>
+          </select>
+        </label>
+        <label>
+          Name
+          <input id="owner-staff-name" type="text" required />
+        </label>
+        <label>
+          Specialization (doctors only)
+          <input id="owner-staff-spec" type="text" />
+        </label>
+        <button type="submit">Add staff</button>
+      </form>
+
+      <h3>Appointment requests <span class="hint">GET /api/v1/owner/clinics/:id/appointments</span></h3>
+      <div class="row">
+        <label style="flex:1">Status filter
+          <select id="owner-status">
+            <option value="">all statuses</option>
+            <option value="pending">pending</option>
+            <option value="scheduled">scheduled</option>
+            <option value="completed">completed</option>
+            <option value="cancelled">cancelled</option>
+            <option value="no_show">no_show</option>
+          </select>
+        </label>
+      </div>
+      <p class="hint">approve/reject: PATCH /api/v1/owner/appointments/:id/approve|reject · cancel: PATCH /api/v1/appointments/:id/cancel</p>
+      <div id="owner-queue"><p class="muted">Not loaded yet.</p></div>
+
+      <h3>Reports</h3>
+      <div class="row">
+        <label>From <input id="report-from" type="date" /></label>
+        <label>To <input id="report-to" type="date" /></label>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button id="btn-report-appt" type="button">Appointments report</button>
+        <button id="btn-report-billing" type="button">Billing report</button>
+      </div>
+      <div id="owner-reports"><p class="muted">Not loaded yet.</p></div>
     </section>
 
     <!-- Patient panel: exercises the patient endpoints. Visible to patients only. -->
@@ -98,7 +361,7 @@
       <div class="row">
         <button id="btn-mine" type="button">Load my appointments</button>
       </div>
-      <p class="hint">GET /api/v1/appointments/mine &nbsp;·&nbsp; cancel: PATCH /api/v1/appointments/:id/cancel</p>
+      <p class="hint">GET /api/v1/appointments/mine &nbsp;·&nbsp; cancel: PATCH /api/v1/appointments/:id/cancel &nbsp;·&nbsp; options: GET /api/v1/appointments/booking-options</p>
       <div id="mine"><p class="muted">Not loaded yet.</p></div>
 
       <h2>Book appointment</h2>
