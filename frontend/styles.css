@@ -1,0 +1,240 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: #f2f4f8;
+  color: #1f2937;
+}
+
+.container {
+  max-width: 420px;
+  margin: 48px auto;
+  padding: 0 16px;
+}
+
+h1 {
+  text-align: center;
+  font-size: 1.6rem;
+  margin-bottom: 20px;
+}
+
+h2 {
+  margin-top: 0;
+  font-size: 1.2rem;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.tab {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.tab.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hidden {
+  display: none;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+
+input {
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+button[type="submit"],
+#btn-signout {
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+#admin {
+  margin-top: 16px;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+}
+
+.row button {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  background: #0f766e;
+  color: #ffffff;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.row button:hover {
+  background: #115e59;
+}
+
+.hint {
+  font-weight: normal;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.muted {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.user-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 0;
+  border-top: 1px solid #e2e8f0;
+  font-size: 0.9rem;
+}
+
+.user-row .who {
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.user-row select {
+  padding: 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+}
+
+.user-row button {
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: #2563eb;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.profile-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  margin-bottom: 8px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+}
+
+.profile-fields label {
+  font-size: 0.85rem;
+}
+
+.profile-fields select,
+.profile-fields input {
+  padding: 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.audit-row {
+  padding: 6px 0;
+  border-top: 1px solid #e2e8f0;
+  font-size: 0.85rem;
+}
+
+#patient {
+  margin-top: 16px;
+}
+
+#staff {
+  margin-top: 16px;
+}
+
+#staff .approve {
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: #15803d;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+#staff .reject {
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: #b91c1c;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+#form-book {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#form-book select,
+#book-date,
+#book-reason {
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+button[type="submit"]:hover,
+#btn-signout:hover {
+  background: #1d4ed8;
+}
+
+.message {
+  min-height: 1.4em;
+  text-align: center;
+  font-size: 0.95rem;
+}
+
+.message.error {
+  color: #b91c1c;
+}
+
+.message.success {
+  color: #15803d;
+}
