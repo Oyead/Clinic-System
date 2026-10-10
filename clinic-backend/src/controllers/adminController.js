@@ -98,7 +98,8 @@ const assignDoctor = async (req, res) => {
 
 const addUser = async (req, res) => {
   try {
-    const { email, password, role } = req.body;
+    const { password, role } = req.body;
+    const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : req.body.email;
 
     if (!email || !password || !role) {
       return res.status(400).json({ 
@@ -115,6 +116,24 @@ const addUser = async (req, res) => {
     if (role === 'patient' && !req.body.name) {
       return res.status(400).json({ 
         error: 'name is required when creating a patient account (used for the patient profile)' 
+      });
+    }
+
+    if (role === 'doctor' && (!req.body.clinic_id || !req.body.name || !req.body.specialization)) {
+      return res.status(400).json({
+        error: 'clinic_id, name, and specialization are required when creating a doctor account (used for the doctor profile)'
+      });
+    }
+
+    if (role === 'receptionist' && (!req.body.clinic_id || !req.body.name)) {
+      return res.status(400).json({
+        error: 'clinic_id and name are required when creating a receptionist account (used for the receptionist profile)'
+      });
+    }
+
+    if ((role === 'doctor' || role === 'receptionist') && !(await adminModel.getClinicById(req.body.clinic_id))) {
+      return res.status(400).json({
+        error: 'The provided clinic_id does not exist'
       });
     }
   
@@ -135,12 +154,44 @@ const addUser = async (req, res) => {
         }, client);
       }
 
-      return { user: created, patient };
+      let doctor = null;
+      if (role === 'doctor') {
+        doctor = await adminModel.createDoctor({
+          user_id: created.id,
+          clinic_id: req.body.clinic_id,
+          name: req.body.name,
+          phone_number: req.body.phone_number || null,
+          specialization: req.body.specialization,
+        }, client);
+      }
+
+      let receptionist = null;
+      if (role === 'receptionist') {
+        receptionist = await adminModel.createReceptionist({
+          user_id: created.id,
+          clinic_id: req.body.clinic_id,
+          name: req.body.name,
+          phone_number: req.body.phone_number || null,
+        }, client);
+      }
+
+      await adminModel.createAuditLog({
+        action: 'admin_create_user',
+        target_user_id: created.id,
+        target_email: created.email,
+        old_role: null,
+        new_role: created.role,
+        performed_by: req.user ? req.user.id : null,
+      }, client);
+
+      return { user: created, patient, doctor, receptionist };
     });
 
     res.status(201).json({ 
       message: 'User created successfully',
       ...(user.patient ? { patient: user.patient } : {}),
+      ...(user.doctor ? { doctor: user.doctor } : {}),
+      ...(user.receptionist ? { receptionist: user.receptionist } : {}),
       user: user.user 
     });
   } catch (error) {
@@ -306,6 +357,199 @@ const linkPatient = async (req, res) => {
   }
 };
 
+const listUsers = async (req, res) => {
+  try {
+    const { role } = req.query;
+    if (role && !VALID_ROLES.includes(role)) {
+      return res.status(400).json({
+        error: `role filter must be one of: ${VALID_ROLES.join(', ')}`,
+      });
+    }
+    const users = await adminModel.listUsers({
+      role: role || undefined,
+      limit: Math.min(parseInt(req.query.limit, 10) || 100, 500),
+      offset: Math.max(parseInt(req.query.offset, 10) || 0, 0),
+    });
+    res.status(200).json({ users });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const updateUserRole = async (req, res) => {
+  try {
+    const targetId = req.params.id;
+    const { role: newRole } = req.body;
+
+    if (!newRole) {
+      return res.status(400).json({ error: 'role is required in body' });
+    }
+    if (!VALID_ROLES.includes(newRole)) {
+      return res.status(400).json({
+        error: `role must be one of: ${VALID_ROLES.join(', ')}`,
+      });
+    }
+
+    const target = await adminModel.getUserById(targetId);
+    if (!target) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    if (target.role === newRole) {
+      return res.status(200).json({ message: 'Role unchanged', user: target });
+    }
+
+    const isDemotingAdmin = target.role === 'admin' && newRole !== 'admin';
+
+    if (isDemotingAdmin && String(target.id) === String(req.user.id)) {
+      return res.status(403).json({
+        error: 'You cannot demote your own admin account. Ask another admin to change your role.',
+      });
+    }
+
+    if (isDemotingAdmin) {
+      const adminCount = await adminModel.countActiveAdmins();
+      if (adminCount <= 1) {
+        return res.status(403).json({
+          error: 'Cannot demote the last remaining active admin.',
+        });
+      }
+    }
+
+    // Promotions into staff roles must not create orphans: ensure a profile
+    // row exists (or is created now) alongside the role change.
+    let needsDoctorProfile = false;
+    let needsReceptionistProfile = false;
+    if (newRole === 'doctor' && !(await adminModel.getDoctorByUserId(target.id))) {
+      needsDoctorProfile = true;
+    }
+    if (newRole === 'receptionist' && !(await adminModel.getReceptionistByUserId(target.id))) {
+      needsReceptionistProfile = true;
+    }
+    if (needsDoctorProfile && (!req.body.clinic_id || !req.body.name || !req.body.specialization)) {
+      return res.status(400).json({
+        error: 'clinic_id, name, and specialization are required when promoting to doctor (used for the doctor profile)'
+      });
+    }
+    if (needsReceptionistProfile && (!req.body.clinic_id || !req.body.name)) {
+      return res.status(400).json({
+        error: 'clinic_id and name are required when promoting to receptionist (used for the receptionist profile)'
+      });
+    }
+    if ((needsDoctorProfile || needsReceptionistProfile) && !(await adminModel.getClinicById(req.body.clinic_id))) {
+      return res.status(400).json({
+        error: 'The provided clinic_id does not exist'
+      });
+    }
+
+    const result = await db.withTransaction(async (client) => {
+      const row = await adminModel.updateUserRole(target.id, newRole, client);
+
+      let doctor = null;
+      if (needsDoctorProfile) {
+        doctor = await adminModel.createDoctor({
+          user_id: target.id,
+          clinic_id: req.body.clinic_id,
+          name: req.body.name,
+          phone_number: req.body.phone_number || null,
+          specialization: req.body.specialization,
+        }, client);
+      }
+
+      let receptionist = null;
+      if (needsReceptionistProfile) {
+        receptionist = await adminModel.createReceptionist({
+          user_id: target.id,
+          clinic_id: req.body.clinic_id,
+          name: req.body.name,
+          phone_number: req.body.phone_number || null,
+        }, client);
+      }
+
+      await adminModel.createAuditLog({
+        action: 'admin_role_change',
+        target_user_id: target.id,
+        target_email: target.email,
+        old_role: target.role,
+        new_role: newRole,
+        performed_by: req.user.id,
+      }, client);
+      return { user: row, doctor, receptionist };
+    });
+
+    return res.status(200).json({
+      message: 'User role updated successfully',
+      ...(result.doctor ? { doctor: result.doctor } : {}),
+      ...(result.receptionist ? { receptionist: result.receptionist } : {}),
+      user: result.user,
+    });
+  } catch (error) {
+    if (error.code === '22P02') {
+      return res.status(400).json({ error: 'Invalid ID format provided' });
+    }
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+const deleteUser = async (req, res) => {
+  try {
+    const targetId = req.params.id;
+    const target = await adminModel.getUserById(targetId);
+    if (!target) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (String(target.id) === String(req.user.id)) {
+      return res.status(403).json({
+        error: 'You cannot delete your own admin account.',
+      });
+    }
+
+    if (target.role === 'admin' && target.is_active) {
+      const adminCount = await adminModel.countActiveAdmins();
+      if (adminCount <= 1) {
+        return res.status(403).json({
+          error: 'Cannot delete the last remaining active admin.',
+        });
+      }
+    }
+
+    const deactivated = await db.withTransaction(async (client) => {
+      const row = await adminModel.deactivateUser(target.id, client);
+      await adminModel.createAuditLog({
+        action: 'admin_delete_user',
+        target_user_id: target.id,
+        target_email: target.email,
+        old_role: target.role,
+        new_role: null,
+        performed_by: req.user.id,
+      }, client);
+      return row;
+    });
+
+    return res.status(200).json({
+      message: 'User deactivated successfully',
+      user: deactivated,
+    });
+  } catch (error) {
+    if (error.code === '22P02') {
+      return res.status(400).json({ error: 'Invalid ID format provided' });
+    }
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+const listAuditLogs = async (req, res) => {
+  try {
+    const logs = await adminModel.listAuditLogs({
+      limit: Math.min(parseInt(req.query.limit, 10) || 100, 500),
+      offset: Math.max(parseInt(req.query.offset, 10) || 0, 0),
+    });
+    res.status(200).json({ audit_logs: logs });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
   addClinic,
   addDoctor,
@@ -315,4 +559,8 @@ module.exports = {
   assignReceptionist,
   listPatients,
   linkPatient,
+  listUsers,
+  updateUserRole,
+  deleteUser,
+  listAuditLogs,
 };
