@@ -83,14 +83,14 @@ const getAppointmentById = async (id) => {
   return result.rows[0];
 };
 
-const updateAppointmentStatus = async (id, status) => {
+const updateAppointmentStatus = async (id, status, client = db) => {
   const query = `
     UPDATE appointments
     SET status = $2
     WHERE id = $1
     RETURNING *;
   `;
-  const result = await db.query(query, [id, status]);
+  const result = await client.query(query, [id, status]);
   return result.rows[0];
 };
 
@@ -156,6 +156,24 @@ const listAppointmentsByClinicId = async (clinicId, status) => {
   return result.rows;
 };
 
+const listClinics = async () => {
+  const result = await db.query(
+    `SELECT id, name
+     FROM clinics
+     ORDER BY id;`
+  );
+  return result.rows;
+};
+
+const listDoctors = async () => {
+  const result = await db.query(
+    `SELECT id, clinic_id, name, specialization
+     FROM doctors
+     ORDER BY id;`
+  );
+  return result.rows;
+};
+
 module.exports = {
   getPatientByUserId,
   getClinicById,
@@ -170,4 +188,6 @@ module.exports = {
   listAppointmentsByDoctorId,
   listAppointments,
   listAppointmentsByClinicId,
+  listClinics,
+  listDoctors,
 };
