@@ -164,6 +164,34 @@ const approveAppointment = async (req, res) => {
   }
 };
 
+const rejectAppointment = async (req, res) => {
+  try {
+    const appointment = await appointmentModel.getAppointmentById(req.params.id);
+
+    if (!appointment) {
+      return res.status(404).json({ error: 'Appointment not found' });
+    }
+
+    if (appointment.status !== 'pending') {
+      return res.status(400).json({
+        error: `Only pending appointments can be rejected (current status: ${appointment.status})`,
+      });
+    }
+
+    if (!(await canManageAppointment(req, appointment))) {
+      return res.status(403).json({ error: 'You do not have permission to reject this appointment' });
+    }
+
+    const updated = await appointmentModel.updateAppointmentStatus(appointment.id, 'cancelled');
+    res.status(200).json({ message: 'Appointment rejected', appointment: updated });
+  } catch (error) {
+    if (error.code === '22P02') {
+      return res.status(400).json({ error: 'Invalid ID format provided' });
+    }
+    res.status(500).json({ error: error.message });
+  }
+};
+
 const cancelAppointment = async (req, res) => {
   try {
     const appointment = await appointmentModel.getAppointmentById(req.params.id);
@@ -173,6 +201,7 @@ const cancelAppointment = async (req, res) => {
     }
 
     const apptDate = new Date(appointment.appointment_date);
+    const minHours = Number(process.env.CANCEL_MIN_HOURS) || 24;
     const hoursUntil = (apptDate.getTime() - Date.now()) / 3600000;
 
     if (req.user.role === 'patient') {
@@ -181,9 +210,9 @@ const cancelAppointment = async (req, res) => {
         return res.status(403).json({ error: 'You do not have permission to cancel this appointment' });
       }
 
-      if (hoursUntil < 24) {
+      if (hoursUntil < minHours) {
         return res.status(400).json({
-          error: 'Cancellations within 24 hours require calling the clinic',
+          error: `Cancellations within ${minHours} hours require calling the clinic`,
         });
       }
 
