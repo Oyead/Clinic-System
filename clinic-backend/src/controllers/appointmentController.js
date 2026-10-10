@@ -1,5 +1,6 @@
 const appointmentModel = require('../models/appointmentModel');
 const adminModel = require('../models/adminModel');
+const ownerModel = require('../models/ownerModel');
 const db = require('../config/db');
 
 const VALID_STATUSES = ['scheduled', 'completed', 'cancelled', 'no_show', 'pending'];
@@ -17,6 +18,10 @@ const canManageAppointment = async (req, appointment) => {
   if (req.user.role === 'receptionist') {
     const receptionist = await appointmentModel.getReceptionistByUserId(req.user.id);
     return !!receptionist && receptionist.clinic_id === appointment.clinic_id;
+  }
+  if (req.user.role === 'owner') {
+    const owned = await ownerModel.getOwnerClinicIds(req.user.id);
+    return owned.includes(Number(appointment.clinic_id));
   }
   return false;
 };
@@ -276,7 +281,6 @@ const cancelAppointment = async (req, res) => {
   }
 };
 
-// Read-only lookup for booking forms (any signed-in user).
 const bookingOptions = async (req, res) => {
   try {
     const clinics = await appointmentModel.listClinics();
