@@ -1,4 +1,6 @@
 const appointmentModel = require('../models/appointmentModel');
+const adminModel = require('../models/adminModel');
+const db = require('../config/db');
 
 const VALID_STATUSES = ['scheduled', 'completed', 'cancelled', 'no_show', 'pending'];
 
@@ -154,7 +156,17 @@ const approveAppointment = async (req, res) => {
       return res.status(403).json({ error: 'You do not have permission to approve this appointment' });
     }
 
-    const updated = await appointmentModel.updateAppointmentStatus(appointment.id, 'scheduled');
+    const updated = await db.withTransaction(async (client) => {
+      const row = await appointmentModel.updateAppointmentStatus(appointment.id, 'scheduled', client);
+      await adminModel.createAuditLog({
+        action: 'appointment_approved',
+        appointment_id: appointment.id,
+        old_status: appointment.status,
+        new_status: 'scheduled',
+        performed_by: req.user.id,
+      }, client);
+      return row;
+    });
     res.status(200).json({ message: 'Appointment approved', appointment: updated });
   } catch (error) {
     if (error.code === '22P02') {
@@ -182,7 +194,17 @@ const rejectAppointment = async (req, res) => {
       return res.status(403).json({ error: 'You do not have permission to reject this appointment' });
     }
 
-    const updated = await appointmentModel.updateAppointmentStatus(appointment.id, 'cancelled');
+    const updated = await db.withTransaction(async (client) => {
+      const row = await appointmentModel.updateAppointmentStatus(appointment.id, 'cancelled', client);
+      await adminModel.createAuditLog({
+        action: 'appointment_rejected',
+        appointment_id: appointment.id,
+        old_status: appointment.status,
+        new_status: 'cancelled',
+        performed_by: req.user.id,
+      }, client);
+      return row;
+    });
     res.status(200).json({ message: 'Appointment rejected', appointment: updated });
   } catch (error) {
     if (error.code === '22P02') {
@@ -216,7 +238,17 @@ const cancelAppointment = async (req, res) => {
         });
       }
 
-      const updated = await appointmentModel.updateAppointmentStatus(appointment.id, 'cancelled');
+      const updated = await db.withTransaction(async (client) => {
+        const row = await appointmentModel.updateAppointmentStatus(appointment.id, 'cancelled', client);
+        await adminModel.createAuditLog({
+          action: 'appointment_cancelled',
+          appointment_id: appointment.id,
+          old_status: appointment.status,
+          new_status: 'cancelled',
+          performed_by: req.user.id,
+        }, client);
+        return row;
+      });
       return res.status(200).json({ message: 'Appointment cancelled', appointment: updated });
     }
 
@@ -224,12 +256,33 @@ const cancelAppointment = async (req, res) => {
       return res.status(403).json({ error: 'You do not have permission to cancel this appointment' });
     }
 
-    const updated = await appointmentModel.updateAppointmentStatus(appointment.id, 'cancelled');
+    const updated = await db.withTransaction(async (client) => {
+      const row = await appointmentModel.updateAppointmentStatus(appointment.id, 'cancelled', client);
+      await adminModel.createAuditLog({
+        action: 'appointment_cancelled',
+        appointment_id: appointment.id,
+        old_status: appointment.status,
+        new_status: 'cancelled',
+        performed_by: req.user.id,
+      }, client);
+      return row;
+    });
     res.status(200).json({ message: 'Appointment cancelled', appointment: updated });
   } catch (error) {
     if (error.code === '22P02') {
       return res.status(400).json({ error: 'Invalid ID format provided' });
     }
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Read-only lookup for booking forms (any signed-in user).
+const bookingOptions = async (req, res) => {
+  try {
+    const clinics = await appointmentModel.listClinics();
+    const doctors = await appointmentModel.listDoctors();
+    res.status(200).json({ clinics, doctors });
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
@@ -241,4 +294,5 @@ module.exports = {
   approveAppointment,
   rejectAppointment,
   cancelAppointment,
+  bookingOptions,
 };
