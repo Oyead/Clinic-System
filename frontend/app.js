@@ -1,4 +1,3 @@
-// Plain fetch calls against the backend auth endpoints.
 const tabSignup = document.getElementById('tab-signup');
 const tabSignin = document.getElementById('tab-signin');
 const formSignup = document.getElementById('form-signup');
@@ -8,17 +7,20 @@ const welcomeTitle = document.getElementById('welcome-title');
 const welcomeDetail = document.getElementById('welcome-detail');
 const btnSignout = document.getElementById('btn-signout');
 const message = document.getElementById('message');
+const roleBanner = document.getElementById('role-banner');
+const roleBannerTitle = document.getElementById('role-banner-title');
+const roleBannerSub = document.getElementById('role-banner-sub');
 const adminPanel = document.getElementById('admin');
 const btnUsers = document.getElementById('btn-users');
 const btnAudit = document.getElementById('btn-audit');
 const usersBox = document.getElementById('users');
 const auditBox = document.getElementById('audit');
 const usersRoleFilter = document.getElementById('users-role-filter');
-// Admin: clinics POST /api/v1/admin/clinics
+
 const formClinic = document.getElementById('form-clinic');
-// Admin: users POST /api/v1/admin/users
+
 const formCreateUser = document.getElementById('form-create-user');
-// Admin: doctors + receptionists + patients
+
 const formDoctor = document.getElementById('form-doctor');
 const formDoctorAssign = document.getElementById('form-doctor-assign');
 const formRecep = document.getElementById('form-recep');
@@ -27,15 +29,15 @@ const btnPatients = document.getElementById('btn-patients');
 const patientsUnlinked = document.getElementById('patients-unlinked');
 const patientsBox = document.getElementById('patients');
 const formPatientLink = document.getElementById('form-patient-link');
-// Admin: all-appointments queue GET /api/v1/appointments/
+
 const adminApptStatus = document.getElementById('admin-appt-status');
 const btnAdminQueue = document.getElementById('btn-admin-queue');
 const adminQueueBox = document.getElementById('admin-queue');
-// Staff extras
+
 const staffStatus = document.getElementById('staff-status');
 const btnStaffOptions = document.getElementById('btn-staff-options');
 const staffOptionsBox = document.getElementById('staff-options');
-// Owner extras
+
 const ownerStatus = document.getElementById('owner-status');
 const roleClinic = document.getElementById('role-clinic');
 const roleName = document.getElementById('role-name');
@@ -66,6 +68,28 @@ let bookingDoctors = [];
 
 const ROLES = ['admin', 'doctor', 'receptionist', 'patient', 'owner'];
 
+const ROLE_META = {
+  admin: { theme: 'admin', title: 'Admin console', sub: 'Clinics, people and appointments' },
+  doctor: { theme: 'staff', title: 'Care team', sub: 'Review and decide appointment requests' },
+  receptionist: { theme: 'staff', title: 'Care team', sub: 'Review and decide appointment requests' },
+  owner: { theme: 'owner', title: 'Practice owner', sub: 'Staff, appointments and reports for your clinics' },
+  patient: { theme: 'patient', title: 'My care', sub: 'Your appointments and booking' },
+};
+
+function applyRoleTheme(role) {
+  const meta = ROLE_META[role];
+  if (!meta) return;
+  document.body.dataset.role = meta.theme;
+  roleBannerTitle.textContent = meta.title;
+  roleBannerSub.textContent = meta.sub;
+  roleBanner.classList.remove('hidden');
+}
+
+function clearRoleTheme() {
+  delete document.body.dataset.role;
+  roleBanner.classList.add('hidden');
+}
+
 function esc(text) {
   return String(text)
     .replace(/&/g, '&amp;')
@@ -87,18 +111,21 @@ function showMessage(text, kind) {
 }
 
 function showView(view) {
+  const isApp = view === 'app';
   const showSignup = view === 'signup';
   tabSignup.classList.toggle('active', showSignup);
   tabSignin.classList.toggle('active', !showSignup);
-  formSignup.classList.toggle('hidden', !showSignup);
-  formSignin.classList.toggle('hidden', showSignup);
+
+  formSignup.classList.toggle('hidden', isApp || !showSignup);
+  formSignin.classList.toggle('hidden', isApp || showSignup);
   welcome.classList.add('hidden');
   adminPanel.classList.add('hidden');
   patientPanel.classList.add('hidden');
   staffPanel.classList.add('hidden');
   ownerPanel.classList.add('hidden');
-  // Hide auth tabs once signed in; show them again on signout via showView.
+
   document.querySelector('.tabs').classList.toggle('hidden', view === 'app');
+  if (view !== 'app') clearRoleTheme();
 }
 
 function currentRole() {
@@ -122,7 +149,7 @@ async function readError(res, fallback) {
     const data = await res.json();
     if (data && data.error) return data.error;
   } catch (_) {
-    // non-JSON response
+
   }
   return fallback;
 }
@@ -199,16 +226,12 @@ formSignin.addEventListener('submit', async (e) => {
     sessionStorage.setItem('token', data.token);
     sessionStorage.setItem('role', data.user.role);
     resetLists();
+    applyRoleTheme(data.user.role);
     welcomeTitle.textContent = 'Signed in';
     welcomeDetail.textContent = `${data.user.email} (${data.user.role})`;
     showView('app');
     welcome.classList.remove('hidden');
-    // Role → visible panels + initial data loads. Mirrors backend guards:
-    // admin: /admin/* + GET /appointments/ (+ approve/reject/cancel)
-    // doctor/receptionist: GET /appointments/ (+ approve/reject/cancel)
-    // patient: POST / + GET /mine + PATCH /:id/cancel
-    // owner: /owner/* + PATCH /appointments/:id/cancel
-    // any auth user: GET /booking-options
+
     if (data.user.role === 'admin') {
       adminPanel.classList.remove('hidden');
       loadRoleClinics();
@@ -252,8 +275,6 @@ btnSignout.addEventListener('click', () => {
   showMessage('Signed out.', 'success');
 });
 
-// Clear every data list so a previous account's data is never shown
-// after switching accounts or signing out.
 function resetLists() {
   usersBox.innerHTML = '<p class="muted">Not loaded yet.</p>';
   auditBox.innerHTML = '<p class="muted">Not loaded yet.</p>';
@@ -267,8 +288,6 @@ function resetLists() {
   ownerReportsBox.innerHTML = '<p class="muted">Not loaded yet.</p>';
 }
 
-// GET /api/v1/admin/users — list all users with a per-user role control.
-// Admin only (backend: requireAdmin).
 btnUsers.addEventListener('click', async () => {
   if (!requireRole('admin')) return;
   usersBox.innerHTML = '<p class="muted">Loading…</p>';
@@ -316,7 +335,6 @@ btnUsers.addEventListener('click', async () => {
   });
 });
 
-// DELETE /api/v1/admin/users/:id — deactivate a user. Admin only.
 async function deleteUser(id) {
   if (!requireRole('admin')) return;
   if (!window.confirm(`Deactivate user #${id}?`)) return;
@@ -338,7 +356,6 @@ async function deleteUser(id) {
   }
 }
 
-// POST /api/v1/admin/clinics — create a clinic. Admin only.
 formClinic.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!requireRole('admin')) return;
@@ -369,7 +386,6 @@ formClinic.addEventListener('submit', async (e) => {
   }
 });
 
-// POST /api/v1/admin/users — create a user with any role. Admin only.
 formCreateUser.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!requireRole('admin')) return;
@@ -408,7 +424,6 @@ formCreateUser.addEventListener('submit', async (e) => {
   }
 });
 
-// POST /api/v1/admin/doctors — link an existing doctor-role user to a clinic. Admin only.
 formDoctor.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!requireRole('admin')) return;
@@ -439,7 +454,6 @@ formDoctor.addEventListener('submit', async (e) => {
   }
 });
 
-// PUT /api/v1/admin/doctors/:id/assign — move a doctor to another clinic. Admin only.
 formDoctorAssign.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!requireRole('admin')) return;
@@ -464,7 +478,6 @@ formDoctorAssign.addEventListener('submit', async (e) => {
   }
 });
 
-// POST /api/v1/admin/receptionists — Admin only.
 formRecep.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!requireRole('admin')) return;
@@ -494,7 +507,6 @@ formRecep.addEventListener('submit', async (e) => {
   }
 });
 
-// PUT /api/v1/admin/receptionists/:id/assign — Admin only.
 formRecepAssign.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!requireRole('admin')) return;
@@ -519,7 +531,6 @@ formRecepAssign.addEventListener('submit', async (e) => {
   }
 });
 
-// GET /api/v1/admin/patients — Admin only.
 btnPatients.addEventListener('click', async () => {
   if (!requireRole('admin')) return;
   patientsBox.innerHTML = '<p class="muted">Loading…</p>';
@@ -547,7 +558,6 @@ btnPatients.addEventListener('click', async () => {
     .join('');
 });
 
-// PUT /api/v1/admin/patients/:id/link-user — Admin only.
 formPatientLink.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!requireRole('admin')) return;
@@ -573,8 +583,6 @@ formPatientLink.addEventListener('submit', async (e) => {
   }
 });
 
-// GET /api/v1/appointments/booking-options — reuse the clinic list so the
-// admin can pick a clinic when promoting to a staff role.
 async function loadRoleClinics() {
   try {
     const res = await fetch('/api/v1/appointments/booking-options', { headers: authHeaders() });
@@ -584,11 +592,10 @@ async function loadRoleClinics() {
       .map((c) => `<option value="${c.id}">${esc(c.name)}</option>`)
       .join('');
   } catch (_) {
-    // stays empty; backend will say which field is missing
+
   }
 }
 
-// PATCH /api/v1/admin/users/:id/role — change one user's role. Admin only.
 async function updateRole(id, role) {
   if (!requireRole('admin')) return;
   const body = { role };
@@ -619,7 +626,6 @@ async function updateRole(id, role) {
   }
 }
 
-// GET /api/v1/admin/audit-logs — show who changed what. Admin only.
 btnAudit.addEventListener('click', async () => {
   if (!requireRole('admin')) return;
   auditBox.innerHTML = '<p class="muted">Loading…</p>';
@@ -653,8 +659,6 @@ btnAudit.addEventListener('click', async () => {
     .join('');
 });
 
-// Shared renderer for appointment queues (staff + admin).
-// Backend: doctor sees own, receptionist sees clinic, admin sees all.
 function renderAppointmentList(box, appointments, emptyText, onDecide, onCancel) {
   if (!appointments.length) {
     box.innerHTML = `<p class="muted">${esc(emptyText)}</p>`;
@@ -683,8 +687,7 @@ function renderAppointmentList(box, appointments, emptyText, onDecide, onCancel)
       row.appendChild(ok);
       row.appendChild(no);
     }
-    // PATCH /api/v1/appointments/:id/cancel — every authenticated role may
-    // cancel within its scope (patient: own + 24h rule, staff/owner/admin: scope).
+
     if (a.status === 'pending' || a.status === 'scheduled') {
       const cancel = document.createElement('button');
       cancel.type = 'button';
@@ -696,8 +699,6 @@ function renderAppointmentList(box, appointments, emptyText, onDecide, onCancel)
   });
 }
 
-// GET /api/v1/appointments/ — staff queue (backend scopes: doctor sees own,
-// receptionist sees own clinic, admin sees all).
 async function loadQueue() {
   if (!requireRole('doctor', 'receptionist')) return;
   queueBox.innerHTML = '<p class="muted">Loading…</p>';
@@ -721,7 +722,6 @@ async function loadQueue() {
 
 btnQueue.addEventListener('click', loadQueue);
 
-// PATCH /api/v1/appointments/:id/approve|reject — doctor, receptionist, admin.
 async function decideAppointment(id, decision) {
   if (!requireRole('doctor', 'receptionist')) return;
   let res;
@@ -743,9 +743,6 @@ async function decideAppointment(id, decision) {
   }
 }
 
-// PATCH /api/v1/appointments/:id/cancel — any signed-in role within its scope.
-// Used by staff, admin and owner queues (patients use cancelAppointment below
-// which refreshes the "mine" list instead).
 async function cancelAnyAppointment(id) {
   if (!sessionStorage.getItem('token')) {
     showMessage('Please sign in first.', 'error');
@@ -772,8 +769,6 @@ async function cancelAnyAppointment(id) {
   }
 }
 
-// GET /api/v1/appointments/ — admin view (sees all). Admin only in the UI,
-// backend additionally allows doctor/receptionist (covered by staff queue).
 async function loadAdminQueue() {
   if (!requireRole('admin')) return;
   adminQueueBox.innerHTML = '<p class="muted">Loading…</p>';
@@ -797,7 +792,6 @@ async function loadAdminQueue() {
 
 btnAdminQueue.addEventListener('click', loadAdminQueue);
 
-// PATCH /api/v1/appointments/:id/approve|reject — admin variant (refreshes admin list).
 async function decideAdminAppointment(id, decision) {
   if (!requireRole('admin')) return;
   let res;
@@ -819,8 +813,6 @@ async function decideAdminAppointment(id, decision) {
   }
 }
 
-// GET /api/v1/appointments/booking-options — any authenticated user.
-// Exposed here so staff can look up valid clinic/doctor IDs.
 btnStaffOptions.addEventListener('click', async () => {
   if (!requireRole('doctor', 'receptionist')) return;
   staffOptionsBox.innerHTML = '<p class="muted">Loading…</p>';
@@ -843,15 +835,12 @@ btnStaffOptions.addEventListener('click', async () => {
     `<div class="audit-row">Doctors: ${esc(data.doctors.map((d) => `#${d.id} ${d.name} (clinic #${d.clinic_id})`).join(', ') || '—')}</div>`;
 });
 
-// ---- Owner panel ----
-
 const ownerApi = (path, options = {}) =>
   fetch(`/api/v1/owner${path}`, {
     ...options,
     headers: authHeaders(),
   });
 
-// GET /api/v1/owner/clinics — which clinics I own. Owner only.
 async function loadOwnerClinics() {
   if (!requireRole('owner')) return;
   let res;
@@ -885,7 +874,6 @@ function loadOwnerAll() {
 btnOwnerLoad.addEventListener('click', loadOwnerAll);
 ownerClinic.addEventListener('change', loadOwnerAll);
 
-// GET /api/v1/owner/clinics/:id/staff — owner only.
 async function loadOwnerStaff() {
   if (!requireRole('owner')) return;
   ownerStaffBox.innerHTML = '<p class="muted">Loading…</p>';
@@ -923,7 +911,6 @@ async function loadOwnerStaff() {
   });
 }
 
-// POST /api/v1/owner/clinics/:id/staff — owner only.
 formOwnerStaff.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!requireRole('owner')) return;
@@ -958,7 +945,6 @@ formOwnerStaff.addEventListener('submit', async (e) => {
   }
 });
 
-// DELETE /api/v1/owner/clinics/:id/staff/:userId — owner only.
 async function removeOwnerStaff(userId) {
   if (!requireRole('owner')) return;
   let res;
@@ -976,7 +962,6 @@ async function removeOwnerStaff(userId) {
   }
 }
 
-// GET /api/v1/owner/clinics/:id/appointments — owner only (plus status filter).
 async function loadOwnerQueue() {
   if (!requireRole('owner')) return;
   ownerQueueBox.innerHTML = '<p class="muted">Loading…</p>';
@@ -1021,8 +1006,7 @@ async function loadOwnerQueue() {
       row.appendChild(ok);
       row.appendChild(no);
     }
-    // PATCH /api/v1/appointments/:id/cancel — owners may cancel in-scope
-    // appointments via the generic endpoint (owner routes only approve/reject).
+
     if (a.status === 'pending' || a.status === 'scheduled') {
       const cancel = document.createElement('button');
       cancel.type = 'button';
@@ -1034,7 +1018,6 @@ async function loadOwnerQueue() {
   });
 }
 
-// PATCH /api/v1/owner/appointments/:id/approve|reject — owner only.
 async function decideOwnerAppointment(id, decision) {
   if (!requireRole('owner')) return;
   let res;
@@ -1066,7 +1049,6 @@ function reportTable(headers, rows) {
     `<tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
 }
 
-// GET /api/v1/owner/clinics/:id/reports/appointments — owner only.
 btnReportAppt.addEventListener('click', async () => {
   if (!requireRole('owner')) return;
   ownerReportsBox.innerHTML = '<p class="muted">Loading…</p>';
@@ -1093,7 +1075,6 @@ btnReportAppt.addEventListener('click', async () => {
   ownerReportsBox.innerHTML = `<h4>By status</h4>${byStatus}<h4>Per doctor</h4>${perDoctor}`;
 });
 
-// GET /api/v1/owner/clinics/:id/reports/billing — owner only.
 btnReportBilling.addEventListener('click', async () => {
   if (!requireRole('owner')) return;
   ownerReportsBox.innerHTML = '<p class="muted">Loading…</p>';
@@ -1117,7 +1098,6 @@ btnReportBilling.addEventListener('click', async () => {
     `<h4>Overall: ${data.overall.bills} bills, total ${data.overall.total}</h4>${byStatus}`;
 });
 
-// GET /api/v1/appointments/booking-options — fill the clinic/doctor dropdowns.
 async function loadBookingOptions() {
   let res;
   try {
@@ -1147,7 +1127,6 @@ function refreshDoctorOptions() {
 
 bookClinic.addEventListener('change', refreshDoctorOptions);
 
-// GET /api/v1/appointments/mine — list my appointments with cancel buttons. Patient only.
 async function loadMine() {
   if (!requireRole('patient')) return;
   mineBox.innerHTML = '<p class="muted">Loading…</p>';
@@ -1187,7 +1166,6 @@ async function loadMine() {
 
 btnMine.addEventListener('click', loadMine);
 
-// PATCH /api/v1/appointments/:id/cancel — cancel my own appointment. Patient only.
 async function cancelAppointment(id) {
   if (!requireRole('patient')) return;
   let res;
@@ -1208,7 +1186,6 @@ async function cancelAppointment(id) {
   }
 }
 
-// POST /api/v1/appointments/ — request a new appointment. Patient only.
 formBook.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!requireRole('patient')) return;

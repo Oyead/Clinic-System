@@ -327,3 +327,103 @@ button[type="submit"]:hover,
 .message.success {
   color: #15803d;
 }
+
+:root {
+  --accent: #2563eb;
+  --accent-dark: #1d4ed8;
+  --banner: #1f2937;
+}
+
+body[data-role="admin"] {
+  --accent: #6d28d9;
+  --accent-dark: #5b21b6;
+  --banner: #4c1d95;
+  background: #f1ebfb;
+}
+
+body[data-role="staff"] {
+  --accent: #0f766e;
+  --accent-dark: #115e59;
+  --banner: #0f766e;
+  background: #e9f7f3;
+}
+
+body[data-role="owner"] {
+  --accent: #b45309;
+  --accent-dark: #92400e;
+  --banner: #92400e;
+  background: #fdf3e3;
+}
+
+body[data-role="patient"] {
+  --accent: #0284c7;
+  --accent-dark: #0369a1;
+  --banner: #0369a1;
+  background: #e8f4fc;
+}
+
+body[data-role="admin"] .container {
+  max-width: 760px;
+}
+
+body[data-role="staff"] .container {
+  max-width: 640px;
+}
+
+body[data-role="owner"] .container {
+  max-width: 680px;
+}
+
+body[data-role="patient"] .container {
+  max-width: 480px;
+}
+
+body[data-role] .tab.active,
+body[data-role] button[type="submit"],
+body[data-role] #btn-signout,
+body[data-role] .row button,
+body[data-role] .user-row button {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+body[data-role] button[type="submit"]:hover,
+body[data-role] #btn-signout:hover,
+body[data-role] .row button:hover {
+  background: var(--accent-dark);
+}
+
+.role-banner {
+  background: var(--banner);
+  color: #ffffff;
+  border-radius: 10px;
+  padding: 10px 14px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.role-banner small {
+  display: block;
+  font-weight: 400;
+  font-size: 0.8rem;
+  opacity: 0.85;
+  margin-top: 2px;
+}
+
+.eyebrow {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  margin-bottom: 2px;
+}
+
+#admin,
+#staff,
+#owner,
+#patient {
+  border-top: 4px solid var(--accent);
+}
