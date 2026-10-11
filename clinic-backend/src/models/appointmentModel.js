@@ -22,7 +22,7 @@ const getClinicById = async (id) => {
 
 const getDoctorById = async (id) => {
   const query = `
-    SELECT id, user_id, clinic_id, name, specialization
+    SELECT id, user_id, clinic_id, name, specialization, duration_minutes
     FROM doctors
     WHERE id = $1;
   `;
@@ -63,13 +63,46 @@ const getAppointmentConflict = async (doctorId, appointmentDate) => {
   return result.rows[0];
 };
 
-const createAppointment = async ({ clinicId, patientId, doctorId, appointmentDate, reason }) => {
+const getAppointmentOverlap = async (doctorId, start, end) => {
   const query = `
-    INSERT INTO appointments (clinic_id, patient_id, doctor_id, appointment_date, status, reason)
-    VALUES ($1, $2, $3, $4, 'pending', $5)
+    SELECT id
+    FROM appointments
+    WHERE doctor_id = $1
+      AND status IN ('pending', 'scheduled')
+      AND tsrange(appointment_date, ends_at, '[)') && tsrange($2::timestamp, $3::timestamp, '[)')
+    LIMIT 1;
+  `;
+  const result = await db.query(query, [doctorId, start, end]);
+  return result.rows[0];
+};
+
+const isWithinOperatingHours = async (clinicId, start, end) => {
+  const query = `
+    SELECT COALESCE(
+      (SELECT COUNT(*)::int FROM operating_hours WHERE clinic_id = $1) = 0
+      OR EXISTS (
+        SELECT 1
+        FROM operating_hours
+        WHERE clinic_id = $1
+          AND day_of_week = EXTRACT(DOW FROM $2::timestamp)::int
+          AND EXTRACT(DOW FROM $2::timestamp) = EXTRACT(DOW FROM $3::timestamp)
+          AND open_time <= ($2::timestamp)::time
+          AND ($3::timestamp)::time <= close_time
+      ),
+      false
+    ) AS open;
+  `;
+  const result = await db.query(query, [clinicId, start, end]);
+  return result.rows[0].open;
+};
+
+const createAppointment = async ({ clinicId, patientId, doctorId, appointmentDate, durationMinutes = 30, reason }) => {
+  const query = `
+    INSERT INTO appointments (clinic_id, patient_id, doctor_id, appointment_date, duration_minutes, status, reason)
+    VALUES ($1, $2, $3, $4, $5, 'pending', $6)
     RETURNING *;
   `;
-  const result = await db.query(query, [clinicId, patientId, doctorId, appointmentDate, reason || null]);
+  const result = await db.query(query, [clinicId, patientId, doctorId, appointmentDate, durationMinutes, reason || null]);
   return result.rows[0];
 };
 
@@ -167,7 +200,7 @@ const listClinics = async () => {
 
 const listDoctors = async () => {
   const result = await db.query(
-    `SELECT id, clinic_id, name, specialization
+    `SELECT id, clinic_id, name, specialization, duration_minutes
      FROM doctors
      ORDER BY id;`
   );
@@ -181,6 +214,8 @@ module.exports = {
   getDoctorByUserId,
   getReceptionistByUserId,
   getAppointmentConflict,
+  getAppointmentOverlap,
+  isWithinOperatingHours,
   createAppointment,
   getAppointmentById,
   updateAppointmentStatus,

@@ -5,13 +5,24 @@ const db = require('../config/db');
 
 const VALID_ROLES = ['admin', 'doctor', 'receptionist', 'patient', 'owner'];
 
+const parseDuration = (value) => {
+  if (value === undefined || value === null || value === '') {
+    return { ok: true, duration: undefined };
+  }
+  const duration = Number(value);
+  if (!Number.isInteger(duration) || duration <= 0 || duration > 480) {
+    return { ok: false };
+  }
+  return { ok: true, duration };
+};
+
 const addClinic = async(req,res)=>{
     try {
     const { name, phone_number, address, email } = req.body;
 
     if (!name || !phone_number || !address || !email) {
-    return res.status(400).json({ 
-    error: 'All fields (name, phone_number, address, email) are required.' 
+    return res.status(400).json({
+    error: 'All fields (name, phone_number, address, email) are required.'
   });
 }
     const clinic = await adminModel.createClinic({ name, phone_number, address, email });
@@ -25,39 +36,52 @@ const addDoctor = async (req, res) => {
   try {
     const { user_id, clinic_id, name, phone_number, specialization } = req.body;
     if (!user_id || !clinic_id || !name || !specialization) {
-      return res.status(400).json({ 
-        error: 'user_id, clinic_id, name, and specialization are required' 
+      return res.status(400).json({
+        error: 'user_id, clinic_id, name, and specialization are required'
+      });
+    }
+
+    const parsed = parseDuration(req.body.duration_minutes);
+    if (!parsed.ok) {
+      return res.status(400).json({
+        error: 'duration_minutes must be an integer between 1 and 480'
       });
     }
 
     const user = await adminModel.getUserById(user_id);
     if (!user) {
-      return res.status(400).json({ 
-        error: 'Referenced user_id does not exist' 
+      return res.status(400).json({
+        error: 'Referenced user_id does not exist'
       });
     }
     if (user.role !== 'doctor') {
-      return res.status(400).json({ 
-        error: "user_id must reference a user with role 'doctor'" 
+      return res.status(400).json({
+        error: "user_id must reference a user with role 'doctor'"
       });
     }
 
-    const doctor = await adminModel.createDoctor({ user_id, clinic_id, name, phone_number, specialization });
-    
-    res.status(201).json({ 
-      message: 'Doctor created successfully', 
-      doctor 
+    const doctor = await adminModel.createDoctor({ user_id, clinic_id, name, phone_number, specialization, ...(parsed.duration !== undefined ? { duration_minutes: parsed.duration } : {}) });
+
+    res.status(201).json({
+      message: 'Doctor created successfully',
+      doctor
     });
   } catch (error) {
     if (error.code === '23503') {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Referenced user_id or clinic_id does not exist'
       });
     }
 
     if (error.code === '23502') {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'A required field is missing'
+      });
+    }
+
+    if (error.code === '23514') {
+      return res.status(400).json({
+        error: 'duration_minutes must be an integer between 1 and 480'
       });
     }
 
@@ -80,9 +104,9 @@ const assignDoctor = async (req, res) => {
       return res.status(404).json({ error: 'Doctor not found' });
     }
 
-    return res.status(200).json({ 
-      message: 'Doctor assigned to clinic successfully', 
-      doctor: updatedDoctor 
+    return res.status(200).json({
+      message: 'Doctor assigned to clinic successfully',
+      doctor: updatedDoctor
     });
   } catch (error) {
     if (error.code === '23503') {
@@ -103,20 +127,20 @@ const addUser = async (req, res) => {
     const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : req.body.email;
 
     if (!email || !password || !role) {
-      return res.status(400).json({ 
-        error: 'email, password, and role are required.' 
+      return res.status(400).json({
+        error: 'email, password, and role are required.'
       });
     }
 
     if (!VALID_ROLES.includes(role)) {
-      return res.status(400).json({ 
-        error: `role must be one of: ${VALID_ROLES.join(', ')}` 
+      return res.status(400).json({
+        error: `role must be one of: ${VALID_ROLES.join(', ')}`
       });
     }
 
     if (role === 'patient' && !req.body.name) {
-      return res.status(400).json({ 
-        error: 'name is required when creating a patient account (used for the patient profile)' 
+      return res.status(400).json({
+        error: 'name is required when creating a patient account (used for the patient profile)'
       });
     }
 
@@ -124,6 +148,17 @@ const addUser = async (req, res) => {
       return res.status(400).json({
         error: 'clinic_id, name, and specialization are required when creating a doctor account (used for the doctor profile)'
       });
+    }
+
+    let staffDuration;
+    if (role === 'doctor') {
+      const parsed = parseDuration(req.body.duration_minutes);
+      if (!parsed.ok) {
+        return res.status(400).json({
+          error: 'duration_minutes must be an integer between 1 and 480'
+        });
+      }
+      staffDuration = parsed.duration;
     }
 
     if (role === 'receptionist' && (!req.body.clinic_id || !req.body.name)) {
@@ -143,12 +178,12 @@ const addUser = async (req, res) => {
         error: 'The provided clinic_id does not exist'
       });
     }
-  
+
     const user = await db.withTransaction(async (client) => {
-      const created = await adminModel.createUser({ 
-        email, 
-        password_hash: hashPassword(password), 
-        role 
+      const created = await adminModel.createUser({
+        email,
+        password_hash: hashPassword(password),
+        role
       }, client);
 
       let patient = null;
@@ -169,6 +204,7 @@ const addUser = async (req, res) => {
           name: req.body.name,
           phone_number: req.body.phone_number || null,
           specialization: req.body.specialization,
+          ...(staffDuration !== undefined ? { duration_minutes: staffDuration } : {}),
         }, client);
       }
 
@@ -199,29 +235,29 @@ const addUser = async (req, res) => {
       return { user: created, patient, doctor, receptionist };
     });
 
-    res.status(201).json({ 
+    res.status(201).json({
       message: 'User created successfully',
       ...(user.patient ? { patient: user.patient } : {}),
       ...(user.doctor ? { doctor: user.doctor } : {}),
       ...(user.receptionist ? { receptionist: user.receptionist } : {}),
-      user: user.user 
+      user: user.user
     });
   } catch (error) {
     if (error.code === '23505') {
-      return res.status(409).json({ 
-        error: 'An account with this email already exists' 
+      return res.status(409).json({
+        error: 'An account with this email already exists'
       });
     }
 
     if (error.code === '23502') {
-      return res.status(400).json({ 
-        error: 'A required field is missing' 
+      return res.status(400).json({
+        error: 'A required field is missing'
       });
     }
 
     if (error.code === '22P02') {
-      return res.status(400).json({ 
-        error: 'Invalid value provided' 
+      return res.status(400).json({
+        error: 'Invalid value provided'
       });
     }
 
@@ -233,45 +269,45 @@ const addReceptionist = async (req, res) => {
   try {
     const { user_id, clinic_id, name, phone_number } = req.body;
     if (!user_id || !clinic_id || !name) {
-      return res.status(400).json({ 
-        error: 'user_id, clinic_id, and name are required' 
+      return res.status(400).json({
+        error: 'user_id, clinic_id, and name are required'
       });
     }
 
     const user = await adminModel.getUserById(user_id);
     if (!user) {
-      return res.status(400).json({ 
-        error: 'Referenced user_id does not exist' 
+      return res.status(400).json({
+        error: 'Referenced user_id does not exist'
       });
     }
     if (user.role !== 'receptionist') {
-      return res.status(400).json({ 
-        error: "user_id must reference a user with role 'receptionist'" 
+      return res.status(400).json({
+        error: "user_id must reference a user with role 'receptionist'"
       });
     }
 
     const receptionist = await adminModel.createReceptionist({ user_id, clinic_id, name, phone_number });
 
-    res.status(201).json({ 
-      message: 'Receptionist created successfully', 
-      receptionist 
+    res.status(201).json({
+      message: 'Receptionist created successfully',
+      receptionist
     });
   } catch (error) {
     if (error.code === '23503') {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Referenced user_id or clinic_id does not exist'
       });
     }
 
     if (error.code === '23505') {
-      return res.status(409).json({ 
-        error: 'This receptionist user is already linked to a clinic' 
+      return res.status(409).json({
+        error: 'This receptionist user is already linked to a clinic'
       });
     }
 
     if (error.code === '22P02') {
-      return res.status(400).json({ 
-        error: 'Invalid value provided' 
+      return res.status(400).json({
+        error: 'Invalid value provided'
       });
     }
 
@@ -294,9 +330,9 @@ const assignReceptionist = async (req, res) => {
       return res.status(404).json({ error: 'Receptionist not found' });
     }
 
-    return res.status(200).json({ 
-      message: 'Receptionist assigned to clinic successfully', 
-      receptionist: updatedReceptionist 
+    return res.status(200).json({
+      message: 'Receptionist assigned to clinic successfully',
+      receptionist: updatedReceptionist
     });
   } catch (error) {
     if (error.code === '23503') {
@@ -350,14 +386,14 @@ const linkPatient = async (req, res) => {
 
     const linked = await adminModel.linkPatientToUser(patientId, user_id);
 
-    return res.status(200).json({ 
-      message: 'Patient linked to user account successfully', 
-      patient: linked 
+    return res.status(200).json({
+      message: 'Patient linked to user account successfully',
+      patient: linked
     });
   } catch (error) {
     if (error.code === '23505') {
-      return res.status(409).json({ 
-        error: 'This patient or user is already linked elsewhere' 
+      return res.status(409).json({
+        error: 'This patient or user is already linked elsewhere'
       });
     }
 
@@ -427,8 +463,6 @@ const updateUserRole = async (req, res) => {
       }
     }
 
-    // Promotions into staff roles must not create orphans: ensure a profile
-    // row exists (or is created now) alongside the role change.
     let needsDoctorProfile = false;
     let needsReceptionistProfile = false;
     if (newRole === 'doctor' && !(await adminModel.getDoctorByUserId(target.id))) {
@@ -442,6 +476,16 @@ const updateUserRole = async (req, res) => {
         error: 'clinic_id, name, and specialization are required when promoting to doctor (used for the doctor profile)'
       });
     }
+    let promotionDuration;
+    if (needsDoctorProfile) {
+      const parsed = parseDuration(req.body.duration_minutes);
+      if (!parsed.ok) {
+        return res.status(400).json({
+          error: 'duration_minutes must be an integer between 1 and 480'
+        });
+      }
+      promotionDuration = parsed.duration;
+    }
     if (needsReceptionistProfile && (!req.body.clinic_id || !req.body.name)) {
       return res.status(400).json({
         error: 'clinic_id and name are required when promoting to receptionist (used for the receptionist profile)'
@@ -453,7 +497,6 @@ const updateUserRole = async (req, res) => {
       });
     }
 
-    // Promotions into (or out of) the owner role manage the clinic link.
     let assignOwnerClinic = null;
     if (newRole === 'owner') {
       if (!req.body.clinic_id) {
@@ -480,6 +523,7 @@ const updateUserRole = async (req, res) => {
           name: req.body.name,
           phone_number: req.body.phone_number || null,
           specialization: req.body.specialization,
+          ...(promotionDuration !== undefined ? { duration_minutes: promotionDuration } : {}),
         }, client);
       }
 

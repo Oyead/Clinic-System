@@ -1,5 +1,3 @@
--- Audit trail for admin creation and role changes.
--- Satisfies "Critical Security Safeguards: Audit Logging".
 CREATE TABLE IF NOT EXISTS admin_audit_logs (
   id serial PRIMARY KEY,
   action varchar(50) NOT NULL,

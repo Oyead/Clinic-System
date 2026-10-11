@@ -6,8 +6,6 @@ const { hashPassword, verifyPassword } = require('../utils/password');
 const normalizeEmail = (email) =>
   typeof email === 'string' ? email.trim().toLowerCase() : '';
 
-// Public patient self-registration. Role is fixed to 'patient' —
-// privilege escalation via signup is not possible.
 const signup = async (req, res) => {
   try {
     const email = normalizeEmail(req.body.email);

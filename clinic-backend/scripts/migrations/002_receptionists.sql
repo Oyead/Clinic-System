@@ -1,5 +1,3 @@
--- Ties receptionists to a clinic, mirroring the doctors table, so
--- receptionists can only manage appointments at their own clinic.
 CREATE TABLE IF NOT EXISTS receptionists (
   id serial PRIMARY KEY,
   user_id integer NOT NULL UNIQUE REFERENCES users(id) ON DELETE SET NULL,

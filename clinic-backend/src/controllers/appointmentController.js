@@ -28,7 +28,7 @@ const canManageAppointment = async (req, appointment) => {
 
 const bookAppointment = async (req, res) => {
   try {
-    const { clinic_id, doctor_id, appointment_date, reason } = req.body;
+    const { clinic_id, doctor_id, appointment_date, duration_minutes, reason } = req.body;
 
     if (!clinic_id || !doctor_id || !appointment_date) {
       return res.status(400).json({ error: 'clinic_id, doctor_id, and appointment_date are required' });
@@ -36,6 +36,14 @@ const bookAppointment = async (req, res) => {
 
     if (!isValidPositiveId(clinic_id) || !isValidPositiveId(doctor_id)) {
       return res.status(400).json({ error: 'clinic_id and doctor_id must be positive integers' });
+    }
+
+    let durationOverride = null;
+    if (duration_minutes !== undefined && duration_minutes !== null) {
+      durationOverride = Number(duration_minutes);
+      if (!Number.isInteger(durationOverride) || durationOverride <= 0 || durationOverride > 480) {
+        return res.status(400).json({ error: 'duration_minutes must be an integer between 1 and 480' });
+      }
     }
 
     const date = new Date(appointment_date);
@@ -67,9 +75,17 @@ const bookAppointment = async (req, res) => {
       return res.status(400).json({ error: 'The selected doctor is not assigned to the selected clinic' });
     }
 
-    const conflict = await appointmentModel.getAppointmentConflict(doctor_id, date.toISOString());
-    if (conflict) {
-      return res.status(409).json({ error: 'The doctor already has a pending or scheduled appointment at this time' });
+    const duration = durationOverride ?? doctor.duration_minutes ?? 30;
+    const end = new Date(date.getTime() + duration * 60000);
+
+    const open = await appointmentModel.isWithinOperatingHours(clinic_id, date.toISOString(), end.toISOString());
+    if (!open) {
+      return res.status(400).json({ error: 'The clinic is closed at the requested time' });
+    }
+
+    const overlap = await appointmentModel.getAppointmentOverlap(doctor_id, date.toISOString(), end.toISOString());
+    if (overlap) {
+      return res.status(409).json({ error: 'The doctor already has a pending or scheduled appointment overlapping this time' });
     }
 
     const appointment = await appointmentModel.createAppointment({
@@ -77,6 +93,7 @@ const bookAppointment = async (req, res) => {
       patientId: patient.id,
       doctorId: doctor_id,
       appointmentDate: date,
+      durationMinutes: duration,
       reason,
     });
 
@@ -89,8 +106,12 @@ const bookAppointment = async (req, res) => {
       return res.status(400).json({ error: 'A referenced clinic, doctor, or patient does not exist' });
     }
 
-    if (error.code === '23505') {
-      return res.status(409).json({ error: 'The doctor already has a pending or scheduled appointment at this time' });
+    if (error.code === '23505' || error.code === '23P01') {
+      return res.status(409).json({ error: 'The doctor already has a pending or scheduled appointment overlapping this time' });
+    }
+
+    if (error.code === '23514') {
+      return res.status(400).json({ error: 'Invalid duration provided' });
     }
 
     if (error.code === '22P02') {

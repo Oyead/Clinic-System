@@ -5,15 +5,6 @@ const { hashPassword } = require('./password');
 const isValidEmail = (email) =>
   typeof email === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
-/**
- * Bootstrap the master Super Admin on a brand-new deployment.
- * Idempotent: creates an admin only when zero active admins exist.
- *
- * Credentials come from SUPER_ADMIN_EMAIL / SUPER_ADMIN_PASSWORD env vars,
- * with optional explicit overrides (e.g. CLI args).
- *
- * @returns {Promise<{created: boolean, user: object|null}>}
- */
 const ensureSuperAdmin = async (overrides = {}) => {
   const email = (overrides.email || process.env.SUPER_ADMIN_EMAIL || '').trim().toLowerCase();
   const password = overrides.password || process.env.SUPER_ADMIN_PASSWORD || '';
@@ -53,7 +44,7 @@ const ensureSuperAdmin = async (overrides = {}) => {
           client
         );
       } catch (auditError) {
-        // Audit table may not be migrated yet on a brand-new DB; don't block bootstrap.
+
         console.warn('Warning: could not write bootstrap audit log:', auditError.message);
       }
       return created;
@@ -62,7 +53,7 @@ const ensureSuperAdmin = async (overrides = {}) => {
     return { created: true, user };
   } catch (error) {
     if (error.code === '23505') {
-      // Lost a race with another boot process / seeder.
+
       const existing = await adminModel.getUserByEmail(email);
       return { created: false, user: null, reason: 'race-exists', existing: existing || null };
     }

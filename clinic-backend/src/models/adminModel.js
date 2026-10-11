@@ -9,13 +9,13 @@ const createClinic =async({name,phone_number,address,email,})=>{
     return result.rows[0]
 }
 
-const createDoctor = async ({ user_id = null, clinic_id = null, name, phone_number, specialization }, client = db) => {
+const createDoctor = async ({ user_id = null, clinic_id = null, name, phone_number, specialization, duration_minutes = 30 }, client = db) => {
   const query = `
-    INSERT INTO doctors (user_id, clinic_id, name, phone_number, specialization)
-    VALUES ($1, $2, $3, $4, $5)
+    INSERT INTO doctors (user_id, clinic_id, name, phone_number, specialization, duration_minutes)
+    VALUES ($1, $2, $3, $4, $5, $6)
     RETURNING *;
   `;
-  const result = await client.query(query, [user_id, clinic_id, name, phone_number, specialization]);
+  const result = await client.query(query, [user_id, clinic_id, name, phone_number, specialization, duration_minutes]);
   return result.rows[0];
 };
 

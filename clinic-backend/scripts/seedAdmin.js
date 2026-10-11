@@ -1,10 +1,3 @@
-// Idempotent bootstrap seed: creates the Super Admin from secure .env
-// credentials, but ONLY when zero admins exist in the database.
-//
-// Usage:
-//   npm run seed:admin
-//   npm run seed:admin -- admin@example.com 'StrongPassword123'
-//   node scripts/seedAdmin.js [email] [password]
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 

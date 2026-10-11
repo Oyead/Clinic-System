@@ -1,5 +1,3 @@
-// Enforces clinic isolation for owner-scoped routes: the clinic under
-// operation must be one of the requester's owned clinics.
 const ownerModel = require('../models/ownerModel');
 
 const clinicIdSources = (req) => [
