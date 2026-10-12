@@ -54,7 +54,7 @@ function Shell() {
         ) : (
           <div className="session-chip">
             <span>New here?</span>
-            <button type="button" onClick={scrollToAuth}>Join the game</button>
+            <button type="button" onClick={scrollToAuth}>Join the platform</button>
           </div>
         )}
       </header>
@@ -70,12 +70,12 @@ function Shell() {
             <aside className="auth-aside">
               <h2>Join the game of showing up.</h2>
               <p>
-                Create your account to book visits, build streaks and collect
-                badges. Clinics approve your requests — you collect the wins.
+                Create your account to book visits, earn platform credits and
+                keep your Reliable Patient badge. Clinics approve your requests — you collect the rewards.
               </p>
               <ul className="auth-points">
                 <li><IconStar width={18} height={18} /> Badges for early bookings and checkups</li>
-                <li><IconFlame width={18} height={18} /> Streaks for consecutive healthy weeks</li>
+                <li><IconFlame width={18} height={18} /> Credits for every completed visit</li>
                 <li><IconPlusCross width={18} height={18} /> One account for every clinic in the system</li>
               </ul>
             </aside>
@@ -107,7 +107,7 @@ function Shell() {
 
       <footer className="footer">
         <span className="dot" />
-        <span>Clinic System — book visits, keep streaks, run the practice.</span>
+        <span>Clinic System — book visits, earn credits, run the practice.</span>
         <span className="footer-spacer" />
         <button type="button" className="legal-link" onClick={() => setLegal('privacy')}>Privacy Policy</button>
         <button type="button" className="legal-link" onClick={() => setLegal('terms')}>Terms &amp; Conditions</button>
