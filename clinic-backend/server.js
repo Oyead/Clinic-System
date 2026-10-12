@@ -6,10 +6,15 @@ if (!process.env.JWT_SECRET) {
   process.exit(1);
 }
 
+const path = require('path');
+
 const app = express();
 app.use(express.json());
 
-app.use(express.static(require('path').resolve(__dirname, '../frontend')));
+const frontendDist = path.resolve(__dirname, '../frontend/dist');
+const frontendLegacy = path.resolve(__dirname, '../frontend');
+app.use(express.static(frontendDist));
+app.use(express.static(frontendLegacy));
 
 const db = require('./src/config/db');
 
@@ -28,7 +33,16 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'API operational' });
 });
 
-const PORT = process.env.PORT || 5000;
+// SPA fallback: serve the React build for non-API routes.
+app.get(/^(?!\/api\/).*/, (req, res, next) => {
+  if (req.method !== 'GET') return next();
+  const indexFile = path.join(frontendDist, 'index.html');
+  res.sendFile(indexFile, (err) => {
+    if (err) next();
+  });
+});
+
+const PORT = process.env.PORT || 5001;
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
 
