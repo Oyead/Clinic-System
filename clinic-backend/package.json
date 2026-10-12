@@ -8,6 +8,7 @@
     "migrate": "node scripts/runMigrations.js",
     "seed:admin": "node scripts/seedAdmin.js",
     "create:admin": "node scripts/createAdmin.js",
+    "wipe": "node scripts/wipeDatabase.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
