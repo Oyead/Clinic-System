@@ -50,8 +50,7 @@ export function AuthProvider({ children }) {
       sessionStorage.removeItem('email');
       setSession({ token: null, role: null, email: null });
       if (res.status === 401) {
-        showMessage('Invalid email or password.', 'error');
-        return { ok: false };
+        return { ok: false, invalid: true };
       }
       showMessage(await readError(res, 'Sign in failed. Please try again.'), 'error');
       return { ok: false };
