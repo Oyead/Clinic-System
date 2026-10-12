@@ -6,6 +6,7 @@ export function AuthForms({ onSignedIn }) {
   const [tab, setTab] = useState('signup');
   const [signupForm, setSignupForm] = useState({ email: '', password: '', name: '' });
   const [signinForm, setSigninForm] = useState({ email: '', password: '' });
+  const [signinError, setSigninError] = useState('');
 
   const handleSignup = async (e) => {
     e.preventDefault();
@@ -34,14 +35,17 @@ export function AuthForms({ onSignedIn }) {
     const email = signinForm.email.trim();
     const password = signinForm.password;
     if (!email || !password) {
-      showMessage('Email and password are required.', 'error');
+      setSigninError('Email and password are required.');
       return;
     }
+    setSigninError('');
     try {
       const result = await signin(email, password);
       if (result.ok) {
         setSigninForm({ email: '', password: '' });
         onSignedIn?.(result.user);
+      } else if (result.invalid) {
+        setSigninError('Invalid email or password.');
       }
     } catch (err) {
       showMessage(err.message, 'error');
@@ -54,14 +58,14 @@ export function AuthForms({ onSignedIn }) {
         <button
           type="button"
           className={`tab${tab === 'signup' ? ' active' : ''}`}
-          onClick={() => { showMessage('', ''); setTab('signup'); }}
+          onClick={() => { showMessage('', ''); setSigninError(''); setTab('signup'); }}
         >
           Sign up
         </button>
         <button
           type="button"
           className={`tab${tab === 'signin' ? ' active' : ''}`}
-          onClick={() => { showMessage('', ''); setTab('signin'); }}
+          onClick={() => { showMessage('', ''); setSigninError(''); setTab('signin'); }}
         >
           Sign in
         </button>
@@ -110,7 +114,7 @@ export function AuthForms({ onSignedIn }) {
               required
               autoComplete="email"
               value={signinForm.email}
-              onChange={(e) => setSigninForm((f) => ({ ...f, email: e.target.value }))}
+              onChange={(e) => { setSigninError(''); setSigninForm((f) => ({ ...f, email: e.target.value })); }}
             />
           </label>
           <label>
@@ -120,9 +124,10 @@ export function AuthForms({ onSignedIn }) {
               required
               autoComplete="current-password"
               value={signinForm.password}
-              onChange={(e) => setSigninForm((f) => ({ ...f, password: e.target.value }))}
+              onChange={(e) => { setSigninError(''); setSigninForm((f) => ({ ...f, password: e.target.value })); }}
             />
           </label>
+          <p className="form-error" role="alert">{signinError}</p>
           <button type="submit">Sign in</button>
         </form>
       )}
