@@ -74,8 +74,8 @@ function HeroArt() {
           d="M34 12c1 8-3 12-6.5 15.5C24.5 30.5 22 33 22 38c0 7 5.4 12.5 12 12.5S46 45 46 38c0-4-1.8-7-3.8-10-.5 2.6-2.6 4-5.2 4.8.8-6-.5-13.4-3-20.8Z"
           fill="#1B7FE0"
         />
-        <text x="56" y="28" className="hero-chip-num">12</text>
-        <text x="56" y="44" className="hero-chip-label">STREAK</text>
+        <text x="56" y="28" className="hero-chip-num">120</text>
+        <text x="56" y="44" className="hero-chip-label">CREDITS</text>
       </g>
 
       <g>
@@ -90,7 +90,7 @@ function HeroArt() {
 }
 
 const RAIL = [
-  { icon: IconFlame, tint: 'tint-blue', value: '12-day streak', note: 'Check in daily to keep it alive' },
+  { icon: IconFlame, tint: 'tint-blue', value: 'Credits that pay off', note: 'Fee waivers, perks and priority slots' },
   { icon: IconStar, tint: 'tint-teal', value: 'Badge unlocked', note: 'Early bird — booked before 9am' },
   { icon: IconTicket, tint: 'tint-sky', value: 'Next visit ready', note: 'Ticket #1042 · Tue 10:30' },
 ];
@@ -123,22 +123,19 @@ export function Hero({ onGetStarted }) {
     <section className="landing">
       <div className="hero-grid">
         <div className="hero-copy glass">
-          <p className="kicker">
-            <IconTrophy width={16} height={16} />
-            The clinic that plays along
-          </p>
           <h2 className="hero-title">
             Your health,
             <br />
             levelled up.
           </h2>
           <p className="hero-sub">
-            Book visits in seconds, keep daily streaks, earn badges for showing
-            up — and give every clinic a care score worth chasing.
+            Book visits in seconds. Complete them to earn platform credits
+            and keep your Reliable Patient badge — then redeem fee waivers,
+            partner perks and priority slots.
           </p>
           <div className="hero-cta">
             <button type="button" className="btn-primary" onClick={onGetStarted}>
-              Start your streak
+              Start earning
               <IconArrowRight />
             </button>
             <a className="btn-ghost" href="#how-it-plays">
@@ -147,7 +144,7 @@ export function Hero({ onGetStarted }) {
           </div>
           <dl className="hero-stats">
             <div>
-              <dt>Streaks kept</dt>
+              <dt>Credits redeemed</dt>
               <dd>48k</dd>
             </div>
             <div>
@@ -162,7 +159,7 @@ export function Hero({ onGetStarted }) {
         </div>
 
         <div className="hero-stage">
-          <a className="stage-link" href="#join" aria-label="Start your streak — join the game">
+          <a className="stage-link" href="#join" aria-label="Start earning — join the platform">
             <HeroArt />
           </a>
         </div>
@@ -193,6 +190,7 @@ export function Hero({ onGetStarted }) {
           </article>
         ))}
       </div>
+      
     </section>
   );
 }
