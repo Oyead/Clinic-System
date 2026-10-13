@@ -9,6 +9,7 @@
     "seed:admin": "node scripts/seedAdmin.js",
     "create:admin": "node scripts/createAdmin.js",
     "wipe": "node scripts/wipeDatabase.js",
+    "verify:roles": "bash scripts/verify-roles.sh",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

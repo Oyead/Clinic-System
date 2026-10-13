@@ -207,6 +207,30 @@ const listDoctors = async () => {
   return result.rows;
 };
 
+const listClinicsByIds = async (ids) => {
+  if (!ids || !ids.length) return [];
+  const result = await db.query(
+    `SELECT id, name
+     FROM clinics
+     WHERE id = ANY($1::int[])
+     ORDER BY id;`,
+    [ids.map(Number)]
+  );
+  return result.rows;
+};
+
+const listDoctorsByClinicIds = async (ids) => {
+  if (!ids || !ids.length) return [];
+  const result = await db.query(
+    `SELECT id, clinic_id, name, specialization, duration_minutes
+     FROM doctors
+     WHERE clinic_id = ANY($1::int[])
+     ORDER BY id;`,
+    [ids.map(Number)]
+  );
+  return result.rows;
+};
+
 module.exports = {
   getPatientByUserId,
   getClinicById,
@@ -225,4 +249,6 @@ module.exports = {
   listAppointmentsByClinicId,
   listClinics,
   listDoctors,
+  listClinicsByIds,
+  listDoctorsByClinicIds,
 };

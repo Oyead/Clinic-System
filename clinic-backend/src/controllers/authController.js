@@ -1,11 +1,29 @@
 const jwt = require('jsonwebtoken');
 const adminModel = require('../models/adminModel');
+const ownerModel = require('../models/ownerModel');
 const db = require('../config/db');
 const { hashPassword, verifyPassword } = require('../utils/password');
+const { hashInviteToken } = require('../utils/invites');
 
 const normalizeEmail = (email) =>
   typeof email === 'string' ? email.trim().toLowerCase() : '';
 
+const signToken = (user) =>
+  jwt.sign(
+    { id: user.id, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
+  );
+
+const publicUser = (user) => ({
+  id: user.id,
+  email: user.email,
+  role: user.role,
+  clinic_id: user.clinic_id || null,
+  status: user.status,
+});
+
+// 1. Patients: public signup, no approval. Role hardcoded server-side.
 const signup = async (req, res) => {
   try {
     const email = normalizeEmail(req.body.email);
@@ -21,7 +39,7 @@ const signup = async (req, res) => {
     try {
       const created = await db.withTransaction(async (client) => {
         const user = await adminModel.createUser(
-          { email, password_hash: hashPassword(password), role: 'patient' },
+          { email, password_hash: hashPassword(password), role: 'patient', status: 'active' },
           client
         );
         if (name) {
@@ -30,12 +48,100 @@ const signup = async (req, res) => {
             client
           );
         }
+        await adminModel.createAuditLog({
+          action: 'patient_signup',
+          target_user_id: user.id,
+          target_email: user.email,
+          old_role: null,
+          new_role: 'patient',
+          performed_by: null,
+        }, client);
         return user;
       });
 
       return res.status(201).json({
-        message: 'Account created. Please sign in.',
-        user: { id: created.id, email: created.email, role: created.role },
+        message: 'Account created.',
+        token: signToken(created),
+        user: publicUser(created),
+      });
+    } catch (error) {
+      if (error.code === '23505') {
+        return res.status(409).json({ error: 'User already exists, please login' });
+      }
+      throw error;
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// 2. Clinic owners: separate public surface. Creates the owner (pending) +
+// the clinic (pending). Admin approval activates both.
+const signupClinic = async (req, res) => {
+  try {
+    const email = normalizeEmail(req.body.email);
+    const { password, name, clinic } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'email and password are required.' });
+    }
+    if (typeof password !== 'string' || password.length < 8) {
+      return res.status(400).json({ error: 'password must be at least 8 characters.' });
+    }
+    if (!clinic || !clinic.name || !clinic.phone_number || !clinic.address) {
+      return res.status(400).json({
+        error: 'clinic name, phone_number, and address are required.',
+      });
+    }
+
+    try {
+      const created = await db.withTransaction(async (client) => {
+        const user = await adminModel.createUser(
+          {
+            email,
+            password_hash: hashPassword(password),
+            role: 'clinic_owner',
+            status: 'pending_verification',
+          },
+          client
+        );
+        const row = await adminModel.createClinic(
+          {
+            name: clinic.name,
+            phone_number: clinic.phone_number,
+            address: clinic.address,
+            email: normalizeEmail(clinic.email) || email,
+            status: 'pending_verification',
+            owner_id: user.id,
+          },
+          client
+        );
+        await ownerModel.assignOwner(user.id, row.id, client);
+        await client.query(`UPDATE users SET clinic_id = $1 WHERE id = $2;`, [row.id, user.id]);
+        user.clinic_id = row.id;
+        await adminModel.createAuditLog({
+          action: 'clinic_signup',
+          target_user_id: user.id,
+          target_email: user.email,
+          old_role: null,
+          new_role: 'clinic_owner',
+          performed_by: null,
+          clinic_id: row.id,
+        }, client);
+        if (name) {
+          // Owner display name lives on the clinic record indirectly; keep a
+          // no-op guard so future profile tables can pick it up.
+        }
+        return { user, clinic: row };
+      });
+
+      // Owner can log in while pending but cannot invite staff or operate
+      // bookings until an admin approves the clinic.
+      return res.status(201).json({
+        message: 'Clinic submitted for verification. You can sign in, but staff invites unlock after approval.',
+        token: signToken(created.user),
+        user: publicUser(created.user),
+        clinic: created.clinic,
       });
     } catch (error) {
       if (error.code === '23505') {
@@ -58,23 +164,79 @@ const login = async (req, res) => {
     }
 
     const user = await adminModel.getUserByEmail(email);
-    if (!user || !user.is_active || !verifyPassword(password, user.password_hash)) {
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+    if (user.status === 'invited') {
+      return res.status(403).json({ error: 'Invite not accepted yet. Use your invite link to set a password.' });
+    }
+    if (user.status === 'suspended') {
+      return res.status(403).json({ error: 'Account suspended. Contact your clinic or platform support.' });
+    }
+    if (user.status === 'offboarded' || !user.is_active) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+    if (!verifyPassword(password, user.password_hash)) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    const token = jwt.sign(
-      { id: user.id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
-    );
+    const payload = { token: signToken(user), user: publicUser(user) };
+    if (user.status === 'pending_verification') {
+      payload.pending_verification = true;
+      payload.message = 'Account pending verification. Staff invites unlock after approval.';
+    }
+    res.status(200).json(payload);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Doctor/receptionist accept: invite token + new password -> active.
+const acceptInvite = async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) {
+      return res.status(400).json({ error: 'token and password are required.' });
+    }
+    if (typeof password !== 'string' || password.length < 8) {
+      return res.status(400).json({ error: 'password must be at least 8 characters.' });
+    }
+
+    const invite = await adminModel.getInviteByTokenHash(hashInviteToken(token));
+    if (!invite || invite.revoked_at || invite.accepted_at) {
+      return res.status(400).json({ error: 'Invite is invalid or no longer active.' });
+    }
+    if (new Date(invite.expires_at).getTime() < Date.now()) {
+      return res.status(410).json({ error: 'Invite expired. Ask your clinic owner to resend it.' });
+    }
+    if (invite.user_status !== 'invited') {
+      return res.status(409).json({ error: 'Invite was already used or the account moved on.' });
+    }
+
+    const user = await db.withTransaction(async (client) => {
+      await adminModel.setUserPassword(invite.user_id, hashPassword(password), client);
+      const row = await adminModel.setUserStatus(invite.user_id, 'active', client);
+      await adminModel.acceptInvite(invite.id, client);
+      await adminModel.createAuditLog({
+        action: 'invite_accepted',
+        target_user_id: invite.user_id,
+        target_email: invite.user_email,
+        old_role: null,
+        new_role: invite.role,
+        performed_by: null,
+        clinic_id: invite.clinic_id,
+      }, client);
+      return row;
+    });
 
     res.status(200).json({
-      token,
-      user: { id: user.id, email: user.email, role: user.role },
+      message: 'Invite accepted. You are now signed in.',
+      token: signToken({ id: user.id, role: invite.role }),
+      user: publicUser({ ...user, role: invite.role }),
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
-module.exports = { signup, login };
+module.exports = { signup, signupClinic, login, acceptInvite };

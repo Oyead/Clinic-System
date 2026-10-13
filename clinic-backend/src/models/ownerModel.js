@@ -13,7 +13,7 @@ const getOwnerClinicIds = async (userId, client = db) => {
 
 const getOwnedClinics = async (userId, client = db) => {
   const result = await client.query(
-    `SELECT c.id, c.name
+    `SELECT c.id, c.name, c.status
      FROM clinics c
      JOIN clinic_owners o ON o.clinic_id = c.id
      WHERE o.user_id = $1
@@ -50,7 +50,7 @@ const removeAllOwnerClinics = async (userId, client = db) => {
 
 const listClinicStaff = async (clinicId, client = db) => {
   const result = await client.query(
-    `SELECT u.id AS user_id, u.email, u.role, u.is_active,
+    `SELECT u.id AS user_id, u.email, u.role, u.status, u.clinic_id, u.is_active,
             d.id AS doctor_id, d.specialization,
             r.id AS receptionist_id
      FROM users u

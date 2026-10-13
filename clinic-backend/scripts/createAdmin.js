@@ -14,13 +14,14 @@ const main = async () => {
   }
 
   const result = await db.query(
-    `INSERT INTO users (email, password_hash, role, is_active)
-     VALUES ($1, $2, 'admin', true)
+    `INSERT INTO users (email, password_hash, role, status, is_active)
+     VALUES ($1, $2, 'admin', 'active', true)
      ON CONFLICT (email)
      DO UPDATE SET password_hash = EXCLUDED.password_hash,
                    role = 'admin',
+                   status = 'active',
                    is_active = true
-     RETURNING id, email, role, is_active;`,
+     RETURNING id, email, role, status, is_active;`,
     [email, hashPassword(password)]
   );
 

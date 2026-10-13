@@ -27,7 +27,7 @@ const { requireAuth, requireAdmin, requireRole } = require('./src/middleware/aut
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/admin', requireAuth, requireAdmin, adminRoutes);
 app.use('/api/v1/appointments', requireAuth, appointmentRoutes);
-app.use('/api/v1/owner', requireAuth, requireRole('owner'), ownerRoutes);
+app.use('/api/v1/owner', requireAuth, requireRole('clinic_owner'), ownerRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'API operational' });

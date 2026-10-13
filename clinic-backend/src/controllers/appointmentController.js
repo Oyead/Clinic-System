@@ -2,6 +2,7 @@ const appointmentModel = require('../models/appointmentModel');
 const adminModel = require('../models/adminModel');
 const ownerModel = require('../models/ownerModel');
 const db = require('../config/db');
+const { normalizeRole } = require('../utils/roles');
 
 const VALID_STATUSES = ['scheduled', 'completed', 'cancelled', 'no_show', 'pending'];
 
@@ -19,7 +20,7 @@ const canManageAppointment = async (req, appointment) => {
     const receptionist = await appointmentModel.getReceptionistByUserId(req.user.id);
     return !!receptionist && receptionist.clinic_id === appointment.clinic_id;
   }
-  if (req.user.role === 'owner') {
+  if (req.user.role === 'clinic_owner' || req.user.role === 'owner') {
     const owned = await ownerModel.getOwnerClinicIds(req.user.id);
     return owned.includes(Number(appointment.clinic_id));
   }
@@ -304,6 +305,31 @@ const cancelAppointment = async (req, res) => {
 
 const bookingOptions = async (req, res) => {
   try {
+    const role = normalizeRole(req.user.role);
+
+    // Staff see only their assigned clinic and its doctors — nothing more.
+    if (role === 'doctor' || role === 'receptionist') {
+      const profile = role === 'doctor'
+        ? await appointmentModel.getDoctorByUserId(req.user.id)
+        : await appointmentModel.getReceptionistByUserId(req.user.id);
+      const clinicIds = [];
+      if (profile && profile.clinic_id) clinicIds.push(Number(profile.clinic_id));
+      // Canonical fallback: users.clinic_id is set on invite and is immutable.
+      if (!clinicIds.length && req.user.clinic_id) clinicIds.push(Number(req.user.clinic_id));
+      const clinics = await appointmentModel.listClinicsByIds(clinicIds);
+      const doctors = await appointmentModel.listDoctorsByClinicIds(clinicIds);
+      return res.status(200).json({ clinics, doctors });
+    }
+
+    // Owners see only their own clinics and those clinics' doctors.
+    if (role === 'clinic_owner') {
+      const owned = await ownerModel.getOwnerClinicIds(req.user.id);
+      const clinics = await appointmentModel.listClinicsByIds(owned);
+      const doctors = await appointmentModel.listDoctorsByClinicIds(owned);
+      return res.status(200).json({ clinics, doctors });
+    }
+
+    // Patients need every clinic/doctor to book; admins need the full overview.
     const clinics = await appointmentModel.listClinics();
     const doctors = await appointmentModel.listDoctors();
     res.status(200).json({ clinics, doctors });
