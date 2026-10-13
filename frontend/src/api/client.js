@@ -3,8 +3,11 @@ export async function readError(res, fallback) {
     const data = await res.json();
     if (data && data.error) return data.error;
   } catch (_) {
+    // Non-JSON body (proxy/gateway HTML page, empty response, …): fall through
+    // to the status-annotated fallback below so the real cause is never hidden.
   }
-  return fallback;
+  const detail = res && res.status ? ` (HTTP ${res.status}${res.statusText ? ` ${res.statusText}` : ''})` : '';
+  return `${fallback}${detail}`;
 }
 
 export function authHeaders(token) {
@@ -33,20 +36,47 @@ export const api = {
       body: JSON.stringify({ email, password, ...(name ? { name } : {}) }),
     }),
 
+  signupClinic: ({ email, password, clinic }) =>
+    request('/api/v1/auth/signup-clinic', {
+      method: 'POST',
+      body: JSON.stringify({ email, password, clinic }),
+    }),
+
+  acceptInvite: ({ token, password }) =>
+    request('/api/v1/auth/accept-invite', {
+      method: 'POST',
+      body: JSON.stringify({ token, password }),
+    }),
+
   login: ({ email, password }) =>
     request('/api/v1/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
 
-  adminUsers: (token, role) =>
-    request(`/api/v1/admin/users${role ? `?role=${encodeURIComponent(role)}` : ''}`, { token }),
+  adminUsers: (token, role, status) => {
+    const params = new URLSearchParams();
+    if (role) params.set('role', role);
+    if (status) params.set('status', status);
+    const qs = params.toString();
+    return request(`/api/v1/admin/users${qs ? `?${qs}` : ''}`, { token });
+  },
 
-  adminCreateUser: (token, body) =>
-    request('/api/v1/admin/users', { token, method: 'POST', body: JSON.stringify(body) }),
+  adminCreateAdmin: (token, body) =>
+    request('/api/v1/admin/admins', { token, method: 'POST', body: JSON.stringify(body) }),
 
-  adminUpdateRole: (token, id, body) =>
-    request(`/api/v1/admin/users/${id}/role`, { token, method: 'PATCH', body: JSON.stringify(body) }),
+  adminSuspendUser: (token, id) =>
+    request(`/api/v1/admin/users/${id}/suspend`, { token, method: 'POST' }),
+
+  adminReinstateUser: (token, id, password) =>
+    request(`/api/v1/admin/users/${id}/reinstate`, {
+      token,
+      method: 'POST',
+      body: JSON.stringify({ password }),
+    }),
+
+  adminOffboardUser: (token, id) =>
+    request(`/api/v1/admin/users/${id}/offboard`, { token, method: 'POST' }),
 
   adminDeleteUser: (token, id) =>
     request(`/api/v1/admin/users/${id}`, { token, method: 'DELETE' }),
@@ -54,25 +84,14 @@ export const api = {
   adminCreateClinic: (token, body) =>
     request('/api/v1/admin/clinics', { token, method: 'POST', body: JSON.stringify(body) }),
 
-  adminCreateDoctor: (token, body) =>
-    request('/api/v1/admin/doctors', { token, method: 'POST', body: JSON.stringify(body) }),
+  adminClinics: (token, status) =>
+    request(`/api/v1/admin/clinics${status ? `?status=${encodeURIComponent(status)}` : ''}`, { token }),
 
-  adminAssignDoctor: (token, id, clinic_id) =>
-    request(`/api/v1/admin/doctors/${id}/assign`, {
-      token,
-      method: 'PUT',
-      body: JSON.stringify({ clinic_id }),
-    }),
+  adminApproveClinic: (token, id) =>
+    request(`/api/v1/admin/clinics/${id}/approve`, { token, method: 'PATCH' }),
 
-  adminCreateReceptionist: (token, body) =>
-    request('/api/v1/admin/receptionists', { token, method: 'POST', body: JSON.stringify(body) }),
-
-  adminAssignReceptionist: (token, id, clinic_id) =>
-    request(`/api/v1/admin/receptionists/${id}/assign`, {
-      token,
-      method: 'PUT',
-      body: JSON.stringify({ clinic_id }),
-    }),
+  adminInviteStaff: (token, body) =>
+    request('/api/v1/admin/staff/invite', { token, method: 'POST', body: JSON.stringify(body) }),
 
   adminPatients: (token, unlinkedOnly) =>
     request(`/api/v1/admin/patients${unlinkedOnly ? '?unlinked=true' : ''}`, { token }),

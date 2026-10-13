@@ -159,7 +159,7 @@ export function Hero({ onGetStarted }) {
         </div>
 
         <div className="hero-stage">
-          <a className="stage-link" href="#join" aria-label="Start earning — join the platform">
+          <a className="stage-link" href="#/signup" aria-label="Start earning — join the platform">
             <HeroArt />
           </a>
         </div>

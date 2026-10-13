@@ -119,3 +119,22 @@ export function IconTicket(props) {
     </Base>
   );
 }
+
+export function IconEye(props) {
+  return (
+    <Base {...props}>
+      <path d="M2.8 12S6 5.9 12 5.9 21.2 12 21.2 12 18 18.1 12 18.1 2.8 12 2.8 12Z" />
+      <circle cx="12" cy="12" r="2.8" />
+    </Base>
+  );
+}
+
+export function IconEyeOff(props) {
+  return (
+    <Base {...props}>
+      <path d="M4.3 4.3l15.4 15.4" />
+      <path d="M9.9 6.2c.7-.2 1.4-.3 2.1-.3 6 0 9.2 6.1 9.2 6.1a17.6 17.6 0 0 1-2.8 3.4M6 7.5A16.4 16.4 0 0 0 2.8 12S6 18.1 12 18.1c1 0 2-.2 2.8-.5" />
+      <path d="M9.9 9.9a2.8 2.8 0 0 0 4 4" />
+    </Base>
+  );
+}

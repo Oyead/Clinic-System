@@ -1,16 +1,21 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, readError } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { Notice, useNotice } from './Notice.jsx';
+import { TokenReveal } from './SecretField.jsx';
 import { StatusFilter } from './Appointments.jsx';
 
 export function OwnerPanel() {
-  const { token, showMessage } = useAuth();
+  const { token } = useAuth();
+  const [notice, notify] = useNotice();
   const [clinics, setClinics] = useState([]);
   const [clinicId, setClinicId] = useState('');
   const [staff, setStaff] = useState(null);
+  const [invites, setInvites] = useState(null);
   const [queue, setQueue] = useState(null);
   const [status, setStatus] = useState('');
-  const [staffForm, setStaffForm] = useState({ email: '', password: '', role: 'doctor', name: '', specialization: '' });
+  const [inviteForm, setInviteForm] = useState({ email: '', role: 'doctor', name: '', specialization: '' });
+  const [lastToken, setLastToken] = useState('');
   const [reportRange, setReportRange] = useState({ from: '', to: '' });
   const [report, setReport] = useState(null);
 
@@ -19,54 +24,73 @@ export function OwnerPanel() {
     [token],
   );
 
+  const activeClinic = clinics.find((c) => String(c.id) === String(clinicId));
+  const clinicLocked = !activeClinic || activeClinic.status !== 'active';
+
   const loadStaff = useCallback(async (id) => {
     if (!id) return;
     try {
       const res = await ownerApi(`/clinics/${id}/staff`);
       if (!res.ok) {
-        showMessage(await readError(res, 'Loading staff failed.'), 'error');
+        notify(await readError(res, 'Showing staff failed.'), 'error');
         return;
       }
       const data = await res.json();
       setStaff(data.staff);
     } catch (err) {
-      showMessage(err.message, 'error');
+      notify(err.message, 'error');
     }
-  }, [ownerApi, showMessage]);
+  }, [ownerApi, notify]);
+
+  const loadInvites = useCallback(async (id) => {
+    if (!id) return;
+    try {
+      const res = await ownerApi(`/clinics/${id}/invites`);
+      if (!res.ok) {
+        if (res.status !== 403) notify(await readError(res, 'Showing invites failed.'), 'error');
+        setInvites(null);
+        return;
+      }
+      const data = await res.json();
+      setInvites(data.invites);
+    } catch (err) {
+      notify(err.message, 'error');
+    }
+  }, [ownerApi, notify]);
 
   const loadQueue = useCallback(async (id, statusFilter) => {
     if (!id) return;
     try {
       const res = await ownerApi(`/clinics/${id}/appointments${statusFilter ? `?status=${encodeURIComponent(statusFilter)}` : ''}`);
       if (!res.ok) {
-        showMessage(await readError(res, 'Loading queue failed.'), 'error');
+        notify(await readError(res, 'Showing queue failed.'), 'error');
         return;
       }
       const data = await res.json();
       setQueue(data.appointments);
     } catch (err) {
-      showMessage(err.message, 'error');
+      notify(err.message, 'error');
     }
-  }, [ownerApi, showMessage]);
+  }, [ownerApi, notify]);
 
   const loadClinics = useCallback(async () => {
     try {
       const res = await ownerApi('/clinics');
       if (!res.ok) {
-        showMessage(await readError(res, 'Loading clinics failed.'), 'error');
+        notify(await readError(res, 'Showing clinics failed.'), 'error');
         return;
       }
       const data = await res.json();
       setClinics(data.clinics);
       if (!data.clinics.length) {
-        showMessage('No clinics assigned to your account yet.', 'error');
+        notify('No clinics assigned to your account yet.', 'error');
         return;
       }
       setClinicId((prev) => prev || String(data.clinics[0].id));
     } catch (err) {
-      showMessage(err.message, 'error');
+      notify(err.message, 'error');
     }
-  }, [ownerApi, showMessage]);
+  }, [ownerApi, notify]);
 
   useEffect(() => {
     loadClinics();
@@ -75,56 +99,108 @@ export function OwnerPanel() {
   useEffect(() => {
     if (!clinicId) return;
     loadStaff(clinicId);
+    loadInvites(clinicId);
     loadQueue(clinicId, status);
-  }, [clinicId, loadStaff, loadQueue]);
+  }, [clinicId, loadStaff, loadInvites, loadQueue]);
 
   const reloadAll = () => {
     if (!clinicId) return;
     loadStaff(clinicId);
+    loadInvites(clinicId);
     loadQueue(clinicId, status);
   };
 
-  const submitStaff = async (e) => {
+  const submitInvite = async (e) => {
     e.preventDefault();
-    const { email, password, role, name, specialization } = staffForm;
-    if (!email.trim() || !password || !name.trim()) {
-      showMessage('Email, password, and name are required.', 'error');
+    const { email, role, name, specialization } = inviteForm;
+    if (!email.trim() || !name.trim()) {
+      notify('Email and name are required.', 'error');
       return;
     }
     try {
-      const res = await ownerApi(`/clinics/${clinicId}/staff`, {
+      const res = await ownerApi(`/clinics/${clinicId}/staff/invite`, {
         method: 'POST',
         body: JSON.stringify({
           email: email.trim(),
-          password,
           role,
           name: name.trim(),
           ...(specialization.trim() ? { specialization: specialization.trim() } : {}),
         }),
       });
+      const payload = await res.json().catch(() => ({}));
       if (res.status === 201) {
-        showMessage('Staff account created.', 'success');
-        setStaffForm({ email: '', password: '', role: 'doctor', name: '', specialization: '' });
+        notify(payload.message || 'Invite created.', 'success');
+        setLastToken(payload.inviteToken || '');
+        setInviteForm({ email: '', role: 'doctor', name: '', specialization: '' });
         loadStaff(clinicId);
+        loadInvites(clinicId);
       } else {
-        showMessage(await readError(res, 'Creating staff failed.'), 'error');
+        notify(payload.error || 'Creating invite failed.', 'error');
       }
     } catch (err) {
-      showMessage(err.message, 'error');
+      notify(err.message, 'error');
     }
   };
 
-  const removeStaff = async (userId) => {
+  const resendInvite = async (inviteId) => {
     try {
-      const res = await ownerApi(`/clinics/${clinicId}/staff/${userId}`, { method: 'DELETE' });
+      const res = await ownerApi(`/clinics/${clinicId}/invites/${inviteId}/resend`, { method: 'POST' });
+      const payload = await res.json().catch(() => ({}));
       if (res.ok) {
-        showMessage('Staff account deactivated.', 'success');
-        loadStaff(clinicId);
+        notify('Invite resent.', 'success');
+        setLastToken(payload.inviteToken || '');
+        loadInvites(clinicId);
       } else {
-        showMessage(await readError(res, 'Removing staff failed.'), 'error');
+        notify(payload.error || 'Resending invite failed.', 'error');
       }
     } catch (err) {
-      showMessage(err.message, 'error');
+      notify(err.message, 'error');
+    }
+  };
+
+  const revokeInvite = async (inviteId) => {
+    if (!window.confirm('Revoke this invite? The never-activated account is offboarded and the email freed.')) return;
+    try {
+      const res = await ownerApi(`/clinics/${clinicId}/invites/${inviteId}`, { method: 'DELETE' });
+      if (res.ok) {
+        notify('Invite revoked.', 'success');
+        loadStaff(clinicId);
+        loadInvites(clinicId);
+      } else {
+        notify(await readError(res, 'Revoking invite failed.'), 'error');
+      }
+    } catch (err) {
+      notify(err.message, 'error');
+    }
+  };
+
+  const suspendStaff = async (userId) => {
+    if (!window.confirm(`Suspend staff #${userId}? They lose access until reinstated or offboarded.`)) return;
+    try {
+      const res = await ownerApi(`/clinics/${clinicId}/staff/${userId}/suspend`, { method: 'POST' });
+      if (res.ok) {
+        notify('Staff suspended.', 'success');
+        loadStaff(clinicId);
+      } else {
+        notify(await readError(res, 'Suspending staff failed.'), 'error');
+      }
+    } catch (err) {
+      notify(err.message, 'error');
+    }
+  };
+
+  const offboardStaff = async (userId) => {
+    if (!window.confirm(`Offboard staff #${userId}? Clean departure: access removed, email anonymized and freed.`)) return;
+    try {
+      const res = await ownerApi(`/clinics/${clinicId}/staff/${userId}/offboard`, { method: 'POST' });
+      if (res.ok) {
+        notify('Staff offboarded.', 'success');
+        loadStaff(clinicId);
+      } else {
+        notify(await readError(res, 'Offboarding staff failed.'), 'error');
+      }
+    } catch (err) {
+      notify(err.message, 'error');
     }
   };
 
@@ -133,13 +209,13 @@ export function OwnerPanel() {
       const res = await ownerApi(`/appointments/${id}/${decision}`, { method: 'PATCH' });
       if (res.ok) {
         const data = await res.json();
-        showMessage(data.message || `Appointment ${decision}d.`, 'success');
+        notify(data.message || `Appointment ${decision}d.`, 'success');
         loadQueue(clinicId, status);
       } else {
-        showMessage(await readError(res, `${decision} failed.`), 'error');
+        notify(await readError(res, `${decision} failed.`), 'error');
       }
     } catch (err) {
-      showMessage(err.message, 'error');
+      notify(err.message, 'error');
     }
   };
 
@@ -147,13 +223,13 @@ export function OwnerPanel() {
     try {
       const res = await api.cancelAppointment(token, id);
       if (res.ok) {
-        showMessage('Appointment cancelled.', 'success');
+        notify('Appointment cancelled.', 'success');
         loadQueue(clinicId, status);
       } else {
-        showMessage(await readError(res, 'Cancellation failed.'), 'error');
+        notify(await readError(res, 'Cancellation failed.'), 'error');
       }
     } catch (err) {
-      showMessage(err.message, 'error');
+      notify(err.message, 'error');
     }
   };
 
@@ -169,13 +245,13 @@ export function OwnerPanel() {
     try {
       const res = await ownerApi(`/clinics/${clinicId}/reports/appointments${reportQuery()}`);
       if (!res.ok) {
-        showMessage(await readError(res, 'Loading report failed.'), 'error');
+        notify(await readError(res, 'Showing report failed.'), 'error');
         return;
       }
       const data = await res.json();
       setReport({ type: 'appointments', data });
     } catch (err) {
-      showMessage(err.message, 'error');
+      notify(err.message, 'error');
     }
   };
 
@@ -183,50 +259,80 @@ export function OwnerPanel() {
     try {
       const res = await ownerApi(`/clinics/${clinicId}/reports/billing${reportQuery()}`);
       if (!res.ok) {
-        showMessage(await readError(res, 'Loading report failed.'), 'error');
+        notify(await readError(res, 'Showing report failed.'), 'error');
         return;
       }
       const data = await res.json();
       setReport({ type: 'billing', data });
     } catch (err) {
-      showMessage(err.message, 'error');
+      notify(err.message, 'error');
     }
   };
 
   return (
     <section className="card">
-      <h2><span className="eyebrow">Practice owner</span>My clinics</h2>
+      <h2><span className="eyebrow">Clinic owner</span>My clinics</h2>
+      <Notice notice={notice} />
       <div className="row">
         <select value={clinicId} onChange={(e) => setClinicId(e.target.value)}>
-          {clinics.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          {clinics.map((c) => <option key={c.id} value={c.id}>{c.name}{c.status && c.status !== 'active' ? ` (${c.status})` : ''}</option>)}
         </select>
-        <button type="button" onClick={reloadAll}>Load</button>
+        <button type="button" onClick={reloadAll}>Show</button>
       </div>
+      {clinicLocked && (
+        <p className="muted" role="status">
+          This clinic is pending platform verification. Staff invites unlock after an admin approves it.
+        </p>
+      )}
 
       <h3>Staff</h3>
       <div>
-        {staff === null ? <p className="muted">Not loaded yet.</p>
-          : staff.length === 0 ? <p className="muted">No staff yet. Add the first below.</p>
+        {staff === null ? <p className="muted">Not shown yet.</p>
+          : staff.length === 0 ? <p className="muted">No staff yet. Send the first invite below.</p>
           : staff.map((s) => (
             <div className="user-row" key={s.user_id}>
-              <span className="who">{s.email}<br />{s.role}{s.role === 'doctor' ? ` (${s.specialization || ''})` : ''}{s.is_active ? '' : ' (inactive)'}</span>
-              <button type="button" className="remove" disabled={!s.is_active} onClick={() => removeStaff(s.user_id)}>Remove</button>
+              <span className="who">{s.email}<br />{s.role}{s.role === 'doctor' ? ` (${s.specialization || ''})` : ''} · {s.status || (s.is_active ? 'active' : 'inactive')}</span>
+              {s.status === 'active' && (
+                <button type="button" onClick={() => suspendStaff(s.user_id)}>Suspend</button>
+              )}
+              {(s.status === 'active' || s.status === 'suspended') && (
+                <button type="button" className="remove" onClick={() => offboardStaff(s.user_id)}>Offboard</button>
+              )}
             </div>
           ))}
       </div>
-      <form noValidate onSubmit={submitStaff} id="form-owner-staff">
-        <label>Email<input type="email" required value={staffForm.email} onChange={(e) => setStaffForm((f) => ({ ...f, email: e.target.value }))} /></label>
-        <label>Password (min 8 characters)<input type="password" required minLength={8} value={staffForm.password} onChange={(e) => setStaffForm((f) => ({ ...f, password: e.target.value }))} /></label>
+
+      <h3>Invite staff</h3>
+      <p className="hint">Owners invite doctors and receptionists. They set their own password via Accept invite — changing clinics always means offboard-and-reinvite, never an edit.</p>
+      <form noValidate onSubmit={submitInvite} id="form-owner-staff">
+        <label>Email<input type="email" required value={inviteForm.email} onChange={(e) => setInviteForm((f) => ({ ...f, email: e.target.value }))} /></label>
         <label>Role
-          <select value={staffForm.role} onChange={(e) => setStaffForm((f) => ({ ...f, role: e.target.value }))}>
+          <select value={inviteForm.role} onChange={(e) => setInviteForm((f) => ({ ...f, role: e.target.value }))}>
             <option value="doctor">doctor</option>
             <option value="receptionist">receptionist</option>
           </select>
         </label>
-        <label>Name<input type="text" required value={staffForm.name} onChange={(e) => setStaffForm((f) => ({ ...f, name: e.target.value }))} /></label>
-        <label>Specialization (doctors only)<input type="text" value={staffForm.specialization} onChange={(e) => setStaffForm((f) => ({ ...f, specialization: e.target.value }))} /></label>
-        <button type="submit">Add staff</button>
+        <label>Name<input type="text" required value={inviteForm.name} onChange={(e) => setInviteForm((f) => ({ ...f, name: e.target.value }))} /></label>
+        <label>Specialization (doctors only)<input type="text" value={inviteForm.specialization} onChange={(e) => setInviteForm((f) => ({ ...f, specialization: e.target.value }))} /></label>
+        <button type="submit" disabled={clinicLocked}>Send invite</button>
       </form>
+      {lastToken && (
+        <TokenReveal token={lastToken} title="Latest invite token — share it with the invitee" />
+      )}
+
+      <h3>Pending invites</h3>
+      <div>
+        {invites === null ? <p className="muted">Not shown yet.</p>
+          : invites.filter((i) => !i.accepted_at && !i.revoked_at).length === 0
+            ? <p className="muted">No pending invites.</p>
+            : invites.filter((i) => !i.accepted_at && !i.revoked_at).map((i) => (
+              <div className="user-row" key={i.id}>
+                <span className="who">{i.user_email}<br />{i.role} · expires {new Date(i.expires_at).toLocaleString()}</span>
+                <button type="button" onClick={() => resendInvite(i.id)}>Resend</button>
+                <button type="button" className="remove" onClick={() => revokeInvite(i.id)}>Revoke</button>
+              </div>
+            ))}
+      </div>
 
       <h3>Appointment requests</h3>
       <div className="row">
@@ -234,7 +340,7 @@ export function OwnerPanel() {
       </div>
       <p>Approve or reject pending requests, or cancel scheduled ones.</p>
       <div>
-        {queue === null ? <p className="muted">Not loaded yet.</p>
+        {queue === null ? <p className="muted">Not shown yet.</p>
           : queue.length === 0 ? <p className="muted">No appointments at this clinic.</p>
           : queue.map((a) => (
             <div className="user-row" key={a.id}>
@@ -262,7 +368,7 @@ export function OwnerPanel() {
         <button type="button" onClick={loadBillingReport}>Billing report</button>
       </div>
       <div>
-        {report === null ? <p className="muted">Not loaded yet.</p>
+        {report === null ? <p className="muted">Not shown yet.</p>
           : report.type === 'appointments' ? (
             <>
               <h4>By status</h4>

@@ -1,13 +1,16 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { api, readError } from '../api/client.js';
 
-export const ROLES = ['admin', 'doctor', 'receptionist', 'patient', 'owner'];
+export const ROLES = ['admin', 'doctor', 'receptionist', 'patient', 'clinic_owner'];
+
+// Legacy label spoken by old sessions/tokens.
+export const normalizeRole = (role) => (role === 'owner' ? 'clinic_owner' : role);
 
 export const ROLE_META = {
   admin: { theme: 'admin', title: 'Admin console', sub: 'Clinics, people and appointments' },
   doctor: { theme: 'staff', title: 'Care team', sub: 'Review and decide appointment requests' },
   receptionist: { theme: 'staff', title: 'Care team', sub: 'Review and decide appointment requests' },
-  owner: { theme: 'owner', title: 'Practice owner', sub: 'Staff, appointments and reports for your clinics' },
+  clinic_owner: { theme: 'owner', title: 'Clinic owner', sub: 'Staff, appointments and reports for your clinics' },
   patient: { theme: 'patient', title: 'My care', sub: 'Your appointments and booking' },
 };
 
@@ -17,75 +20,129 @@ function loadSession() {
   try {
     return {
       token: sessionStorage.getItem('token'),
-      role: sessionStorage.getItem('role'),
+      role: normalizeRole(sessionStorage.getItem('role')),
       email: sessionStorage.getItem('email'),
+      status: sessionStorage.getItem('status'),
+      clinic_id: sessionStorage.getItem('clinic_id'),
     };
   } catch (_) {
-    return { token: null, role: null, email: null };
+    return { token: null, role: null, email: null, status: null, clinic_id: null };
   }
+}
+
+function saveSession(data) {
+  sessionStorage.setItem('token', data.token);
+  sessionStorage.setItem('role', data.user.role);
+  sessionStorage.setItem('email', data.user.email);
+  if (data.user.status) sessionStorage.setItem('status', data.user.status);
+  else sessionStorage.removeItem('status');
+  if (data.user.clinic_id) sessionStorage.setItem('clinic_id', String(data.user.clinic_id));
+  else sessionStorage.removeItem('clinic_id');
+  return {
+    token: data.token,
+    role: normalizeRole(data.user.role),
+    email: data.user.email,
+    status: data.user.status || null,
+    clinic_id: data.user.clinic_id || null,
+  };
+}
+
+function clearSession() {
+  sessionStorage.removeItem('token');
+  sessionStorage.removeItem('role');
+  sessionStorage.removeItem('email');
+  sessionStorage.removeItem('status');
+  sessionStorage.removeItem('clinic_id');
 }
 
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(loadSession);
-  const [message, setMessage] = useState({ text: '', kind: '' });
-
-  const showMessage = useCallback((text, kind = '') => {
-    setMessage({ text, kind });
-  }, []);
 
   const signin = useCallback(
     async (email, password) => {
       const res = await api.login({ email, password });
       if (res.ok) {
         const data = await res.json();
-        sessionStorage.setItem('token', data.token);
-        sessionStorage.setItem('role', data.user.role);
-        sessionStorage.setItem('email', data.user.email);
-        setSession({ token: data.token, role: data.user.role, email: data.user.email });
-        showMessage('', '');
-        return { ok: true, user: data.user };
+        setSession(saveSession(data));
+        return { ok: true, user: data.user, pending: data.pending_verification || data.user.status === 'pending_verification' };
       }
-      sessionStorage.removeItem('token');
-      sessionStorage.removeItem('role');
-      sessionStorage.removeItem('email');
-      setSession({ token: null, role: null, email: null });
+      clearSession();
+      setSession({ token: null, role: null, email: null, status: null, clinic_id: null });
       if (res.status === 401) {
-        return { ok: false, invalid: true };
+        return { ok: false, invalid: true, error: 'Invalid email or password.' };
       }
-      showMessage(await readError(res, 'Sign in failed. Please try again.'), 'error');
-      return { ok: false };
+      return { ok: false, error: await readError(res, 'Sign in failed. Please try again.') };
     },
-    [showMessage],
+    [],
   );
 
   const signup = useCallback(
     async ({ email, password, name }) => {
       const res = await api.signup({ email, password, name });
       if (res.status === 201) {
-        showMessage('Account created. Please sign in.', 'success');
-        return { ok: true, created: true };
+        const data = await res.json().catch(() => null);
+        if (data && data.token && data.user) {
+          setSession(saveSession(data));
+          return { ok: true, created: true, user: data.user };
+        }
+        // Fallback for older backends that don't return a token: sign in immediately
+        // so a successful sign up lands on the dashboard without a second manual sign in.
+        return await signin(email, password);
       }
       if (res.status === 409) {
-        showMessage('User already exists, please login', 'error');
-        return { ok: false, exists: true };
+        return { ok: false, exists: true, error: 'User already exists, please login' };
       }
-      showMessage(await readError(res, 'Sign up failed. Please try again.'), 'error');
-      return { ok: false };
+      return { ok: false, error: await readError(res, 'Sign up failed. Please try again.') };
     },
-    [showMessage],
+    [signin],
   );
 
+  const signupClinic = useCallback(async ({ email, password, clinic }) => {
+    const res = await api.signupClinic({ email, password, clinic });
+    if (res.status === 201) {
+      const data = await res.json().catch(() => null);
+      if (data && data.token && data.user) {
+        setSession(saveSession(data));
+        return { ok: true, created: true, user: data.user, clinic: data.clinic, pending: true };
+      }
+      return { ok: true, created: true };
+    }
+    if (res.status === 409) {
+      return { ok: false, exists: true, error: 'User already exists, please login' };
+    }
+    return { ok: false, error: await readError(res, 'Clinic sign up failed. Please try again.') };
+  }, []);
+
+  const acceptInvite = useCallback(async ({ token, password }) => {
+    const res = await api.acceptInvite({ token, password });
+    if (res.ok) {
+      const data = await res.json().catch(() => null);
+      if (data && data.token && data.user) {
+        setSession(saveSession(data));
+        return { ok: true, user: data.user };
+      }
+      return { ok: true };
+    }
+    return { ok: false, error: await readError(res, 'Accepting the invite failed.') };
+  }, []);
+
   const signout = useCallback(() => {
-    sessionStorage.removeItem('token');
-    sessionStorage.removeItem('role');
-    sessionStorage.removeItem('email');
-    setSession({ token: null, role: null, email: null });
-    showMessage('Signed out.', 'success');
-  }, [showMessage]);
+    clearSession();
+    setSession({ token: null, role: null, email: null, status: null, clinic_id: null });
+  }, []);
 
   const value = useMemo(
-    () => ({ ...session, user: session.email ? { email: session.email, role: session.role } : null, message, showMessage, signin, signup, signout }),
-    [session, message, showMessage, signin, signup, signout],
+    () => ({
+      ...session,
+      user: session.email ? { email: session.email, role: session.role, status: session.status, clinic_id: session.clinic_id } : null,
+      pendingVerification: session.status === 'pending_verification',
+      signin,
+      signup,
+      signupClinic,
+      acceptInvite,
+      signout,
+    }),
+    [session, signin, signup, signupClinic, acceptInvite, signout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

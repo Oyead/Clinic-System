@@ -1,18 +1,27 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AuthProvider, ROLE_META, useAuth } from './context/AuthContext.jsx';
-import { AuthForms } from './components/AuthForms.jsx';
+import { PatientSignupForm, ClinicSignupForm, AcceptInviteForm, SigninForm } from './components/AuthForms.jsx';
 import { AdminPanel } from './components/AdminPanel.jsx';
 import { StaffPanel } from './components/StaffPanel.jsx';
 import { OwnerPanel } from './components/OwnerPanel.jsx';
 import { PatientPanel } from './components/PatientPanel.jsx';
 import { Hero } from './components/Hero.jsx';
 import { LogoEmblem } from './components/LogoEmblem.jsx';
-import { IconStar, IconFlame, IconPlusCross, IconArrowUp } from './components/icons.jsx';
+import { IconArrowUp } from './components/icons.jsx';
+import { ROUTES, AUTH_ROUTES, useHashRoute } from './router.js';
+
+const NAV_LINKS = [
+  { path: ROUTES.SIGNUP, label: 'Patient sign up' },
+  { path: ROUTES.SIGNUP_CLINIC, label: 'Clinic sign up' },
+  { path: ROUTES.ACCEPT_INVITE, label: 'Accept invite' },
+  { path: ROUTES.SIGNIN, label: 'Sign in' },
+];
 
 function Shell() {
-  const { token, role, email, message, signout, showMessage } = useAuth();
-  const authRef = useRef(null);
-  const [legal, setLegal] = useState(null);
+  const { token, role, email, status, pendingVerification, signout } = useAuth();
+  const { path, params, navigate } = useHashRoute();
+
+  const signedIn = Boolean(token);
 
   useEffect(() => {
     const meta = role ? ROLE_META[role] : null;
@@ -23,85 +32,113 @@ function Shell() {
     }
   }, [token, role]);
 
-  const meta = role ? ROLE_META[role] : null;
-  const signedIn = Boolean(token);
+  useEffect(() => {
+    const known = [ROUTES.HOME, ...AUTH_ROUTES, ROUTES.PRIVACY, ROUTES.TERMS];
+    if (!known.includes(path)) {
+      navigate(ROUTES.HOME);
+    } else if (signedIn && AUTH_ROUTES.includes(path)) {
+      navigate(ROUTES.HOME);
+    }
+  }, [path, signedIn, navigate]);
 
-  const scrollToAuth = () => {
-    authRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const meta = role ? ROLE_META[role] : null;
+
+  const handleSignout = () => {
+    signout();
+    navigate(ROUTES.HOME);
   };
+
+  const afterAuth = () => navigate(ROUTES.HOME);
 
   return (
     <div className="app-frame" id="top">
       <header className="topbar glass">
-        <div className="brand">
+        <a className="brand brand-link" href={`#${ROUTES.HOME}`} aria-label="Clinic System home">
           <LogoEmblem size={56} />
           <div>
             <span className="brand-name">Clinic System</span>
             <span className="brand-tag">Care, levelled up</span>
           </div>
-        </div>
+        </a>
         <div className="topbar-spacer" />
         {signedIn ? (
           <div className="session-chip">
             <span>{email} · {role}</span>
-            <button
-              type="button"
-              onClick={() => { signout(); showMessage('Signed out.', 'success'); }}
-            >
+            <button type="button" onClick={handleSignout}>
               Sign out
             </button>
           </div>
         ) : (
-          <div className="session-chip">
-            <span>New here?</span>
-            <button type="button" onClick={scrollToAuth}>Join the platform</button>
-          </div>
+          <nav className="topnav" aria-label="Primary">
+            {NAV_LINKS.map((l) => (
+              <a key={l.path} href={`#${l.path}`} className={path === l.path ? 'active' : ''}>
+                {l.label}
+              </a>
+            ))}
+          </nav>
         )}
       </header>
 
-      <p className={`message${message.kind ? ` ${message.kind}` : ''}`} aria-live="polite">
-        {message.text}
-      </p>
-
-      {!signedIn && (
-        <main>
-          <Hero onGetStarted={scrollToAuth} />
-          <section className="auth-section" id="join" ref={authRef} aria-label="Sign up or sign in">
-            <aside className="auth-aside">
-              <h2>Join the game of showing up.</h2>
-              <p>
-                Create your account to book visits, earn platform credits and
-                keep your Reliable Patient badge. Clinics approve your requests — you collect the rewards.
-              </p>
-              <ul className="auth-points">
-                <li><IconStar width={18} height={18} /> Badges for early bookings and checkups</li>
-                <li><IconFlame width={18} height={18} /> Credits for every completed visit</li>
-                <li><IconPlusCross width={18} height={18} /> One account for every clinic in the system</li>
-              </ul>
-            </aside>
-            <div className="auth-card glass">
-              <div className="container">
-                <AuthForms />
-              </div>
-            </div>
-          </section>
-        </main>
-      )}
-
-      {signedIn && (
+      {signedIn ? (
         <main className="dashboard">
           {meta && (
             <div className="role-banner" role="status">
               <span>{meta.title}</span>
-              <small>{meta.sub} — signed in as {email} ({role})</small>
+              <small>{meta.sub} — signed in as {email} ({role}{status ? ` · ${status}` : ''})</small>
+            </div>
+          )}
+          {pendingVerification && (
+            <div className="container">
+              <p className="message" role="status">
+                Your clinic is pending platform verification. You can sign in, but staff invites unlock after approval.
+              </p>
             </div>
           )}
           <div className="container">
             {role === 'admin' && <AdminPanel />}
             {(role === 'doctor' || role === 'receptionist') && <StaffPanel />}
-            {role === 'owner' && <OwnerPanel />}
+            {(role === 'clinic_owner' || role === 'owner') && <OwnerPanel />}
             {role === 'patient' && <PatientPanel />}
           </div>
+        </main>
+      ) : path === ROUTES.SIGNUP ? (
+        <AuthPage
+          eyebrow="Patients"
+          title="Patient sign up"
+          sub="Create your account to book visits, earn platform credits and keep your Reliable Patient badge."
+          form={<PatientSignupForm onSignedIn={afterAuth} />}
+          switchTo={{ href: `#${ROUTES.SIGNIN}`, text: 'Already have an account? Sign in' }}
+        />
+      ) : path === ROUTES.SIGNUP_CLINIC ? (
+        <AuthPage
+          eyebrow="Clinics"
+          title="Clinic sign up"
+          sub="Register your practice. An admin verifies it before staff invites unlock."
+          form={<ClinicSignupForm onSignedIn={afterAuth} />}
+          switchTo={{ href: `#${ROUTES.SIGNIN}`, text: 'Already have an account? Sign in' }}
+        />
+      ) : path === ROUTES.ACCEPT_INVITE ? (
+        <AuthPage
+          eyebrow="Care team"
+          title="Accept invite"
+          sub="Paste the invite token your clinic owner shared, choose a password, and you're in."
+          form={<AcceptInviteForm onSignedIn={afterAuth} initialToken={params.get('token') || ''} />}
+          switchTo={{ href: `#${ROUTES.SIGNIN}`, text: 'Already have an account? Sign in' }}
+        />
+      ) : path === ROUTES.SIGNIN ? (
+        <AuthPage
+          eyebrow="Welcome back"
+          title="Sign in"
+          form={<SigninForm onSignedIn={afterAuth} />}
+          switchTo={{ href: `#${ROUTES.SIGNUP}`, text: "New here? Create a patient account" }}
+        />
+      ) : path === ROUTES.PRIVACY ? (
+        <LegalPage doc="privacy" />
+      ) : path === ROUTES.TERMS ? (
+        <LegalPage doc="terms" />
+      ) : (
+        <main>
+          <Hero onGetStarted={() => navigate(ROUTES.SIGNUP)} />
         </main>
       )}
 
@@ -109,13 +146,34 @@ function Shell() {
         <span className="dot" />
         <span>Clinic System — book visits, earn credits, run the practice.</span>
         <span className="footer-spacer" />
-        <button type="button" className="legal-link" onClick={() => setLegal('privacy')}>Privacy Policy</button>
-        <button type="button" className="legal-link" onClick={() => setLegal('terms')}>Terms &amp; Conditions</button>
+        <a className="legal-link" href={`#${ROUTES.PRIVACY}`}>Privacy Policy</a>
+        <a className="legal-link" href={`#${ROUTES.TERMS}`}>Terms &amp; Conditions</a>
         <span className="footer-copy">© 2026 Clinic System. All rights reserved.</span>
       </footer>
-      {legal && <LegalModal doc={legal} onClose={() => setLegal(null)} />}
       <BackToTop />
     </div>
+  );
+}
+
+function AuthPage({ eyebrow, title, sub, form, switchTo }) {
+  return (
+    <main className="auth-page">
+      <div className="auth-card glass">
+        <div className="container">
+          <h2 className="auth-page-title">
+            <span className="eyebrow">{eyebrow}</span>
+            {title}
+          </h2>
+          {sub && <p className="muted">{sub}</p>}
+          {form}
+          {switchTo && (
+            <p className="auth-switch">
+              <a href={switchTo.href}>{switchTo.text}</a>
+            </p>
+          )}
+        </div>
+      </div>
+    </main>
   );
 }
 
@@ -138,30 +196,19 @@ const LEGAL = {
   },
 };
 
-function LegalModal({ doc, onClose }) {
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+function LegalPage({ doc }) {
   const content = LEGAL[doc];
   if (!content) return null;
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div
-        className="modal glass"
-        role="dialog"
-        aria-modal="true"
-        aria-label={content.title}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2>{content.title}</h2>
+    <main className="auth-page legal-page">
+      <div className="card">
+        <h2><span className="eyebrow">Legal</span>{content.title}</h2>
         {content.paragraphs.map((p, i) => <p key={i}>{p}</p>)}
-        <button type="button" className="modal-close" onClick={onClose}>Close</button>
+        <p className="auth-switch">
+          <a href={`#${ROUTES.HOME}`}>Back to home</a>
+        </p>
       </div>
-    </div>
+    </main>
   );
 }
 

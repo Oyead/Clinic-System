@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, readError } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { Notice, useNotice } from './Notice.jsx';
 
 export function PatientPanel() {
-  const { token, showMessage } = useAuth();
+  const { token } = useAuth();
+  const [notice, notify] = useNotice();
   const [mine, setMine] = useState(null);
   const [clinics, setClinics] = useState([]);
   const [doctors, setDoctors] = useState([]);
@@ -13,17 +15,17 @@ export function PatientPanel() {
     try {
       const res = await api.myAppointments(token);
       if (!res.ok) {
-        showMessage(await readError(res, 'Loading appointments failed.'), 'error');
+        notify(await readError(res, 'Showing appointments failed.'), 'error');
         setMine(null);
         return;
       }
       const data = await res.json();
       setMine(data.appointments);
     } catch (err) {
-      showMessage(err.message, 'error');
+      notify(err.message, 'error');
       setMine(null);
     }
-  }, [token, showMessage]);
+  }, [token, notify]);
 
   const loadOptions = useCallback(async () => {
     try {
@@ -34,11 +36,11 @@ export function PatientPanel() {
       setDoctors(data.doctors ?? []);
       setBooking((b) => ({ ...b, clinic_id: b.clinic_id || String(data.clinics[0]?.id ?? '') }));
       if (!data.clinics.length || !data.doctors.length) {
-        showMessage('No clinics or doctors available for booking yet.', 'error');
+        notify('No clinics or doctors available for booking yet.', 'error');
       }
     } catch (_) {
     }
-  }, [token, showMessage]);
+  }, [token, notify]);
 
   useEffect(() => {
     loadMine();
@@ -60,20 +62,20 @@ export function PatientPanel() {
     try {
       const res = await api.cancelAppointment(token, id);
       if (res.ok) {
-        showMessage('Appointment cancelled.', 'success');
+        notify('Appointment cancelled.', 'success');
         loadMine();
       } else {
-        showMessage(await readError(res, 'Cancellation failed.'), 'error');
+        notify(await readError(res, 'Cancellation failed.'), 'error');
       }
     } catch (err) {
-      showMessage(err.message, 'error');
+      notify(err.message, 'error');
     }
   };
 
   const submit = async (e) => {
     e.preventDefault();
     if (!booking.clinic_id || !booking.doctor_id || !booking.date) {
-      showMessage('Clinic, doctor, and date are required.', 'error');
+      notify('Clinic, doctor, and date are required.', 'error');
       return;
     }
     try {
@@ -84,26 +86,27 @@ export function PatientPanel() {
         ...(booking.reason.trim() ? { reason: booking.reason.trim() } : {}),
       });
       if (res.status === 201) {
-        showMessage('Appointment requested. It becomes active once the clinic approves it.', 'success');
+        notify('Appointment requested. It becomes active once the clinic approves it.', 'success');
         setBooking((b) => ({ ...b, date: '', reason: '' }));
         loadMine();
       } else {
-        showMessage(await readError(res, 'Booking failed.'), 'error');
+        notify(await readError(res, 'Booking failed.'), 'error');
       }
     } catch (err) {
-      showMessage(err.message, 'error');
+      notify(err.message, 'error');
     }
   };
 
   return (
     <section className="card">
       <h2><span className="eyebrow">My care</span>My appointments</h2>
+      <Notice notice={notice} />
       <div className="row">
-        <button type="button" onClick={loadMine}>Load my appointments</button>
+        <button type="button" onClick={loadMine}>Show my appointments</button>
       </div>
       <p>View your appointments or cancel an upcoming one.</p>
       <div>
-        {mine === null ? <p className="muted">Not loaded yet.</p>
+        {mine === null ? <p className="muted">Not shown yet.</p>
           : mine.length === 0 ? <p className="muted">No appointments yet. Book one below.</p>
           : mine.map((a) => (
             <div className="user-row" key={a.id}>

@@ -139,6 +139,182 @@ p {
   background: var(--accent-dark);
 }
 
+.topnav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.topnav a {
+  text-decoration: none;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  padding: 8px 14px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.topnav a:hover {
+  color: var(--accent-dark);
+  background: var(--surface-blue);
+}
+
+.topnav a.active {
+  background: var(--ink);
+  color: #fff;
+}
+
+.brand-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.auth-page {
+  display: flex;
+  justify-content: center;
+}
+
+.auth-page .auth-card,
+.auth-page .card {
+  width: 100%;
+  max-width: 560px;
+}
+
+.auth-page-title {
+  font-size: 1.7rem;
+  font-weight: 800;
+}
+
+.auth-switch {
+  margin: 0;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.auth-switch a {
+  color: var(--accent-dark);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.auth-switch a:hover {
+  color: var(--accent);
+}
+
+.form-link {
+  color: var(--accent-dark);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.form-link:hover {
+  color: var(--accent);
+}
+
+.secret-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.secret-wrap input {
+  width: 100%;
+  padding-right: 46px;
+  box-sizing: border-box;
+}
+
+.secret-toggle {
+  position: absolute;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink-soft);
+}
+
+.secret-toggle:hover {
+  background: var(--surface-blue);
+  color: var(--accent-dark);
+}
+
+.secret-toggle svg {
+  width: 20px;
+  height: 20px;
+}
+
+.token-box {
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--surface-blue);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.token-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.token-head .secret-toggle {
+  position: static;
+}
+
+.token-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1rem;
+}
+
+.token-row {
+  display: flex;
+  gap: 8px;
+}
+
+.token-value {
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.token-copy {
+  flex: none;
+  border: none;
+  border-radius: 10px;
+  background: var(--ink);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+
+.token-copy:hover {
+  background: var(--accent-dark);
+}
+
+.token-note {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.legal-page a {
+  text-decoration: none;
+}
+
 .emblem {
   display: inline-flex;
   flex: none;
@@ -922,6 +1098,14 @@ button[type="button"] {
   color: var(--danger);
 }
 
+.form-ok {
+  min-height: 1.4em;
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--success);
+}
+
 body[data-role="admin"] {
   --accent: #174a7c;
   --accent-dark: #0f3559;
@@ -978,6 +1162,7 @@ body[data-role="patient"] {
   font-size: 0.8rem;
   font-weight: 700;
   color: var(--ink);
+  text-decoration: none;
 }
 
 .legal-link:hover {
