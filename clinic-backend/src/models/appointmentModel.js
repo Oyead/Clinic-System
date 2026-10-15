@@ -96,13 +96,13 @@ const isWithinOperatingHours = async (clinicId, start, end) => {
   return result.rows[0].open;
 };
 
-const createAppointment = async ({ clinicId, patientId, doctorId, appointmentDate, durationMinutes = 30, reason }) => {
+const createAppointment = async ({ clinicId, patientId, doctorId, appointmentDate, durationMinutes = 30, reason, slotId = null }) => {
   const query = `
-    INSERT INTO appointments (clinic_id, patient_id, doctor_id, appointment_date, duration_minutes, status, reason)
-    VALUES ($1, $2, $3, $4, $5, 'pending', $6)
+    INSERT INTO appointments (clinic_id, patient_id, doctor_id, appointment_date, duration_minutes, status, reason, slot_id)
+    VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7)
     RETURNING *;
   `;
-  const result = await db.query(query, [clinicId, patientId, doctorId, appointmentDate, durationMinutes, reason || null]);
+  const result = await db.query(query, [clinicId, patientId, doctorId, appointmentDate, durationMinutes, reason || null, slotId]);
   return result.rows[0];
 };
 
@@ -127,62 +127,90 @@ const updateAppointmentStatus = async (id, status, client = db) => {
   return result.rows[0];
 };
 
-const listAppointmentsByPatientId = async (patientId) => {
+const listAppointmentsByPatientId = async (patientId, range = {}) => {
+  const conditions = ['a.patient_id = $1'];
+  const params = [patientId];
+  appendRangeClauses(conditions, params, range);
   const query = `
     SELECT a.*, c.name AS clinic_name, d.name AS doctor_name, d.specialization
     FROM appointments a
     JOIN clinics c ON c.id = a.clinic_id
     JOIN doctors d ON d.id = a.doctor_id
-    WHERE a.patient_id = $1
+    WHERE ${conditions.join(' AND ')}
     ORDER BY a.appointment_date DESC;
   `;
-  const result = await db.query(query, [patientId]);
+  const result = await db.query(query, params);
   return result.rows;
 };
 
-const listAppointmentsByDoctorId = async (doctorId, status) => {
-  const statusClause = status ? 'AND a.status = $2' : '';
-  const params = status ? [doctorId, status] : [doctorId];
+const appendRangeClauses = (conditions, params, range = {}) => {
+  if (range.from) {
+    params.push(range.from);
+    conditions.push(`a.appointment_date >= $${params.length}`);
+  }
+  if (range.to) {
+    params.push(range.to);
+    conditions.push(`a.appointment_date < $${params.length}`);
+  }
+};
+
+const listAppointmentsByDoctorId = async (doctorId, status, range = {}) => {
+  const conditions = ['a.doctor_id = $1'];
+  const params = [doctorId];
+  if (status) {
+    params.push(status);
+    conditions.push(`a.status = $${params.length}`);
+  }
+  appendRangeClauses(conditions, params, range);
   const query = `
     SELECT a.*, c.name AS clinic_name, p.name AS patient_name
     FROM appointments a
     JOIN clinics c ON c.id = a.clinic_id
     JOIN patients p ON p.id = a.patient_id
-    WHERE a.doctor_id = $1
-    ${statusClause}
+    WHERE ${conditions.join(' AND ')}
     ORDER BY a.appointment_date DESC;
   `;
   const result = await db.query(query, params);
   return result.rows;
 };
 
-const listAppointments = async (status) => {
-  const statusClause = status ? 'WHERE a.status = $1' : '';
-  const params = status ? [status] : [];
+const listAppointments = async (status, range = {}) => {
+  const conditions = [];
+  const params = [];
+  if (status) {
+    params.push(status);
+    conditions.push(`a.status = $${params.length}`);
+  }
+  appendRangeClauses(conditions, params, range);
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const query = `
     SELECT a.*, c.name AS clinic_name, p.name AS patient_name, d.name AS doctor_name
     FROM appointments a
     JOIN clinics c ON c.id = a.clinic_id
     JOIN patients p ON p.id = a.patient_id
     JOIN doctors d ON d.id = a.doctor_id
-    ${statusClause}
+    ${where}
     ORDER BY a.appointment_date DESC;
   `;
   const result = await db.query(query, params);
   return result.rows;
 };
 
-const listAppointmentsByClinicId = async (clinicId, status) => {
-  const statusClause = status ? 'AND a.status = $2' : '';
-  const params = status ? [clinicId, status] : [clinicId];
+const listAppointmentsByClinicId = async (clinicId, status, range = {}) => {
+  const conditions = ['a.clinic_id = $1'];
+  const params = [clinicId];
+  if (status) {
+    params.push(status);
+    conditions.push(`a.status = $${params.length}`);
+  }
+  appendRangeClauses(conditions, params, range);
   const query = `
     SELECT a.*, c.name AS clinic_name, p.name AS patient_name, d.name AS doctor_name
     FROM appointments a
     JOIN clinics c ON c.id = a.clinic_id
     JOIN patients p ON p.id = a.patient_id
     JOIN doctors d ON d.id = a.doctor_id
-    WHERE a.clinic_id = $1
-    ${statusClause}
+    WHERE ${conditions.join(' AND ')}
     ORDER BY a.appointment_date DESC;
   `;
   const result = await db.query(query, params);

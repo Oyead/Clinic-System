@@ -1,8 +1,10 @@
 const appointmentModel = require('../models/appointmentModel');
+const availabilityModel = require('../models/availabilityModel');
 const adminModel = require('../models/adminModel');
 const ownerModel = require('../models/ownerModel');
 const db = require('../config/db');
 const { normalizeRole } = require('../utils/roles');
+const { parseDateRange } = require('../utils/range');
 
 const VALID_STATUSES = ['scheduled', 'completed', 'cancelled', 'no_show', 'pending'];
 
@@ -29,6 +31,11 @@ const canManageAppointment = async (req, appointment) => {
 
 const bookAppointment = async (req, res) => {
   try {
+    // Slot-based booking: patient picks one of the published 45-minute slots.
+    if (req.body && req.body.slot_id !== undefined && req.body.slot_id !== null && req.body.slot_id !== '') {
+      return bookSlotAppointment(req, res);
+    }
+
     const { clinic_id, doctor_id, appointment_date, duration_minutes, reason } = req.body;
 
     if (!clinic_id || !doctor_id || !appointment_date) {
@@ -123,13 +130,72 @@ const bookAppointment = async (req, res) => {
   }
 };
 
+const bookSlotAppointment = async (req, res) => {
+  try {
+    const { slot_id, reason } = req.body;
+    if (!isValidPositiveId(slot_id)) {
+      return res.status(400).json({ error: 'slot_id must be a positive integer' });
+    }
+    const patient = await appointmentModel.getPatientByUserId(req.user.id);
+    if (!patient) {
+      return res.status(400).json({
+        error: 'No patient profile is linked to your account. Please contact the clinic to book.',
+      });
+    }
+    try {
+      const appointment = await db.withTransaction(async (client) => {
+        const slot = await availabilityModel.getSlotByIdForUpdate(slot_id, client);
+        if (!slot) {
+          const error = new Error('This time slot is no longer available.');
+          error.status = 404;
+          throw error;
+        }
+        if (slot.status !== 'open') {
+          const error = new Error('This time slot has just been taken. Please choose another one.');
+          error.status = 409;
+          throw error;
+        }
+        if (new Date(slot.starts_at).getTime() <= Date.now()) {
+          const error = new Error('This time slot is in the past. Please choose another one.');
+          error.status = 400;
+          throw error;
+        }
+        const created = await client.query(
+          `INSERT INTO appointments (clinic_id, patient_id, doctor_id, appointment_date, duration_minutes, status, reason, slot_id)
+           VALUES ($1, $2, $3, $4, 45, 'pending', $5, $6)
+           RETURNING *;`,
+          [slot.clinic_id, patient.id, slot.doctor_id, slot.starts_at, reason || null, slot.id]
+        );
+        await availabilityModel.setSlotStatus(slot.id, 'booked', client);
+        return created.rows[0];
+      });
+      res.status(201).json({
+        message: 'Appointment requested successfully. It becomes active once approved by the clinic.',
+        appointment,
+      });
+    } catch (error) {
+      if (error.status) return res.status(error.status).json({ error: error.message });
+      if (error.code === '23505' || error.code === '23P01') {
+        return res.status(409).json({ error: 'This time slot has just been taken. Please choose another one.' });
+      }
+      throw error;
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 const listMyAppointments = async (req, res) => {
   try {
     const patient = await appointmentModel.getPatientByUserId(req.user.id);
     if (!patient) {
       return res.status(200).json({ appointments: [] });
     }
-    const appointments = await appointmentModel.listAppointmentsByPatientId(patient.id);
+    const { range, error: rangeError } = parseDateRange(req.query);
+    if (rangeError) {
+      return res.status(400).json({ error: rangeError });
+    }
+    const appointments = await appointmentModel.listAppointmentsByPatientId(patient.id, range);
     res.status(200).json({ appointments });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -144,19 +210,24 @@ const listAppointments = async (req, res) => {
       return res.status(400).json({ error: `status must be one of: ${VALID_STATUSES.join(', ')}` });
     }
 
+    const { range, error: rangeError } = parseDateRange(req.query);
+    if (rangeError) {
+      return res.status(400).json({ error: rangeError });
+    }
+
     let appointments;
     if (req.user.role === 'doctor') {
       const doctor = await appointmentModel.getDoctorByUserId(req.user.id);
       appointments = doctor
-        ? await appointmentModel.listAppointmentsByDoctorId(doctor.id, status)
+        ? await appointmentModel.listAppointmentsByDoctorId(doctor.id, status, range)
         : [];
     } else if (req.user.role === 'receptionist') {
       const receptionist = await appointmentModel.getReceptionistByUserId(req.user.id);
       appointments = receptionist
-        ? await appointmentModel.listAppointmentsByClinicId(receptionist.clinic_id, status)
+        ? await appointmentModel.listAppointmentsByClinicId(receptionist.clinic_id, status, range)
         : [];
     } else {
-      appointments = await appointmentModel.listAppointments(status);
+      appointments = await appointmentModel.listAppointments(status, range);
     }
 
     res.status(200).json({ appointments });
@@ -230,6 +301,9 @@ const rejectAppointment = async (req, res) => {
         new_status: 'cancelled',
         performed_by: req.user.id,
       }, client);
+      if (appointment.slot_id) {
+        await availabilityModel.setSlotStatus(appointment.slot_id, 'open', client);
+      }
       return row;
     });
     res.status(200).json({ message: 'Appointment rejected', appointment: updated });
@@ -274,6 +348,9 @@ const cancelAppointment = async (req, res) => {
           new_status: 'cancelled',
           performed_by: req.user.id,
         }, client);
+        if (appointment.slot_id) {
+          await availabilityModel.setSlotStatus(appointment.slot_id, 'open', client);
+        }
         return row;
       });
       return res.status(200).json({ message: 'Appointment cancelled', appointment: updated });
@@ -292,6 +369,9 @@ const cancelAppointment = async (req, res) => {
         new_status: 'cancelled',
         performed_by: req.user.id,
       }, client);
+      if (appointment.slot_id) {
+        await availabilityModel.setSlotStatus(appointment.slot_id, 'open', client);
+      }
       return row;
     });
     res.status(200).json({ message: 'Appointment cancelled', appointment: updated });

@@ -1,6 +1,7 @@
 const db = require('../config/db');
 const adminModel = require('../models/adminModel');
 const appointmentModel = require('../models/appointmentModel');
+const availabilityModel = require('../models/availabilityModel');
 const ownerModel = require('../models/ownerModel');
 const { canInvite, normalizeRole, STAFF_ROLES } = require('../utils/roles');
 const {
@@ -9,6 +10,7 @@ const {
   placeholderPasswordHash,
   INVITE_TTL_DAYS,
 } = require('../utils/invites');
+const { parseDateRange } = require('../utils/range');
 
 const normalizeEmail = (email) =>
   typeof email === 'string' ? email.trim().toLowerCase() : email;
@@ -352,7 +354,11 @@ const listQueue = async (req, res) => {
     if (status && !VALID_STATUSES.includes(status)) {
       return res.status(400).json({ error: `status must be one of: ${VALID_STATUSES.join(', ')}` });
     }
-    const appointments = await appointmentModel.listAppointmentsByClinicId(req.clinicId, status);
+    const { range, error: rangeError } = parseDateRange(req.query);
+    if (rangeError) {
+      return res.status(400).json({ error: rangeError });
+    }
+    const appointments = await appointmentModel.listAppointmentsByClinicId(req.clinicId, status, range);
     res.status(200).json({ appointments });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -384,6 +390,9 @@ const decideAppointment = (decision) => async (req, res) => {
         performed_by: req.user.id,
         clinic_id: appointment.clinic_id,
       }, client);
+      if (newStatus === 'cancelled' && appointment.slot_id) {
+        await availabilityModel.setSlotStatus(appointment.slot_id, 'open', client);
+      }
       return row;
     });
 
