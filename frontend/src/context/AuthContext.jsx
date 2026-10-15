@@ -3,7 +3,6 @@ import { api, readError } from '../api/client.js';
 
 export const ROLES = ['admin', 'doctor', 'receptionist', 'patient', 'clinic_owner'];
 
-// Legacy label spoken by old sessions/tokens.
 export const normalizeRole = (role) => (role === 'owner' ? 'clinic_owner' : role);
 
 export const ROLE_META = {
@@ -85,8 +84,6 @@ export function AuthProvider({ children }) {
           setSession(saveSession(data));
           return { ok: true, created: true, user: data.user };
         }
-        // Fallback for older backends that don't return a token: sign in immediately
-        // so a successful sign up lands on the dashboard without a second manual sign in.
         return await signin(email, password);
       }
       if (res.status === 409) {

@@ -1,7 +1,5 @@
 import { useCallback, useState } from 'react';
 
-// Inline notification rendered inside the section that produced it.
-// kind: 'error' | 'success' | '' (neutral)
 export function Notice({ notice }) {
   if (!notice || !notice.text) return null;
   return (

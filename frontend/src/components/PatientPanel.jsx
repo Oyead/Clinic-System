@@ -2,30 +2,32 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, readError } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Notice, useNotice } from './Notice.jsx';
+import { PanelTabs } from './Tabs.jsx';
+import { PatientMiniCalendar } from './PatientMiniCalendar.jsx';
+import { SlotPickerCalendar } from './SlotPickerCalendar.jsx';
+
+const PATIENT_TABS = [
+  { id: 'appointments', label: 'My appointments' },
+  { id: 'book', label: 'Book appointment' },
+];
 
 export function PatientPanel() {
   const { token } = useAuth();
   const [notice, notify] = useNotice();
-  const [mine, setMine] = useState(null);
+  const [tab, setTab] = useState('appointments');
+  const [refreshToken, setRefreshToken] = useState(0);
   const [clinics, setClinics] = useState([]);
   const [doctors, setDoctors] = useState([]);
-  const [booking, setBooking] = useState({ clinic_id: '', doctor_id: '', date: '', reason: '' });
+  const [booking, setBooking] = useState({ clinic_id: '', doctor_id: '', slot: null, reason: '' });
 
-  const loadMine = useCallback(async () => {
-    try {
-      const res = await api.myAppointments(token);
-      if (!res.ok) {
-        notify(await readError(res, 'Showing appointments failed.'), 'error');
-        setMine(null);
-        return;
-      }
-      const data = await res.json();
-      setMine(data.appointments);
-    } catch (err) {
-      notify(err.message, 'error');
-      setMine(null);
+  const loadRange = useCallback(async ({ from, to }) => {
+    const res = await api.myAppointments(token, { from, to });
+    if (!res.ok) {
+      throw new Error(await readError(res, 'Loading this month failed.'));
     }
-  }, [token, notify]);
+    const data = await res.json();
+    return data.appointments || [];
+  }, [token]);
 
   const loadOptions = useCallback(async () => {
     try {
@@ -43,9 +45,8 @@ export function PatientPanel() {
   }, [token, notify]);
 
   useEffect(() => {
-    loadMine();
     loadOptions();
-  }, [loadMine, loadOptions]);
+  }, [loadOptions]);
 
   const doctorOptions = useMemo(
     () => doctors.filter((d) => String(d.clinic_id) === String(booking.clinic_id)),
@@ -63,7 +64,7 @@ export function PatientPanel() {
       const res = await api.cancelAppointment(token, id);
       if (res.ok) {
         notify('Appointment cancelled.', 'success');
-        loadMine();
+        setRefreshToken((n) => n + 1);
       } else {
         notify(await readError(res, 'Cancellation failed.'), 'error');
       }
@@ -74,21 +75,20 @@ export function PatientPanel() {
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!booking.clinic_id || !booking.doctor_id || !booking.date) {
-      notify('Clinic, doctor, and date are required.', 'error');
+    if (!booking.clinic_id || !booking.doctor_id || !booking.slot) {
+      notify('Clinic, doctor, and an open time slot are required. Pick a dotted day, then a time.', 'error');
       return;
     }
     try {
       const res = await api.bookAppointment(token, {
-        clinic_id: Number(booking.clinic_id),
-        doctor_id: Number(booking.doctor_id),
-        appointment_date: new Date(booking.date).toISOString(),
+        slot_id: booking.slot.id,
         ...(booking.reason.trim() ? { reason: booking.reason.trim() } : {}),
       });
       if (res.status === 201) {
         notify('Appointment requested. It becomes active once the clinic approves it.', 'success');
-        setBooking((b) => ({ ...b, date: '', reason: '' }));
-        loadMine();
+        setBooking((b) => ({ ...b, slot: null, reason: '' }));
+        setRefreshToken((n) => n + 1);
+        setTab('appointments');
       } else {
         notify(await readError(res, 'Booking failed.'), 'error');
       }
@@ -99,40 +99,55 @@ export function PatientPanel() {
 
   return (
     <section className="card">
-      <h2><span className="eyebrow">My care</span>My appointments</h2>
+      <h2><span className="eyebrow">My care</span>Dashboard</h2>
       <Notice notice={notice} />
+      <PanelTabs tabs={PATIENT_TABS} active={tab} onChange={setTab} label="Patient sections" />
+      {tab === 'appointments' && (
+      <>
+      <h3>My appointments</h3>
       <div className="row">
-        <button type="button" onClick={loadMine}>Show my appointments</button>
+        <button type="button" onClick={() => setRefreshToken((n) => n + 1)}>Refresh month</button>
       </div>
-      <p>View your appointments or cancel an upcoming one.</p>
-      <div>
-        {mine === null ? <p className="muted">Not shown yet.</p>
-          : mine.length === 0 ? <p className="muted">No appointments yet. Book one below.</p>
-          : mine.map((a) => (
-            <div className="user-row" key={a.id}>
-              <span className="who">{a.doctor_name || ''} @ {a.clinic_name || ''}<br />{new Date(a.appointment_date).toLocaleString()} · {a.status}</span>
-              <button type="button" disabled={a.status === 'cancelled'} onClick={() => cancel(a.id)}>Cancel</button>
-            </div>
-          ))}
-      </div>
+      <p>Your appointments at a glance. Only the visible month is loaded — flip months to load more. Tap a dotted day to see that day's visits, or cancel an upcoming one.</p>
+      <div><PatientMiniCalendar loadRange={loadRange} reloadKey={`${refreshToken}`} onCancel={cancel} /></div>
+      </>
+      )}
 
-      <h2>Book appointment</h2>
+      {tab === 'book' && (
+      <>
+      <h3>Book appointment</h3>
       <form id="form-book" noValidate onSubmit={submit}>
         <label>
           Clinic
-          <select value={booking.clinic_id} onChange={(e) => setBooking((b) => ({ ...b, clinic_id: e.target.value, doctor_id: '' }))}>
+          <select value={booking.clinic_id} onChange={(e) => setBooking((b) => ({ ...b, clinic_id: e.target.value, doctor_id: '', slot: null }))}>
             {clinics.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </label>
         <label>
           Doctor
-          <select value={booking.doctor_id} onChange={(e) => setBooking((b) => ({ ...b, doctor_id: e.target.value }))}>
+          <select value={booking.doctor_id} onChange={(e) => setBooking((b) => ({ ...b, doctor_id: e.target.value, slot: null }))}>
             {doctorOptions.map((d) => <option key={d.id} value={d.id}>{d.name} ({d.specialization || ''})</option>)}
           </select>
         </label>
         <label>
-          Date &amp; time (must be in the future)
-          <input id="book-date" type="datetime-local" required value={booking.date} onChange={(e) => setBooking((b) => ({ ...b, date: e.target.value }))} />
+          Open 45-minute slots — pick a dotted day, then a time
+          {booking.clinic_id && booking.doctor_id ? (
+            <SlotPickerCalendar
+              key={`${booking.clinic_id}|${booking.doctor_id}`}
+              token={token}
+              clinicId={booking.clinic_id}
+              doctorId={booking.doctor_id}
+              selectedSlotId={booking.slot ? booking.slot.id : null}
+              onSelect={(slot) => setBooking((b) => ({ ...b, slot }))}
+            />
+          ) : (
+            <span className="hint">Select a clinic and doctor first.</span>
+          )}
+          {booking.slot && (
+            <span className="slot-picked">
+              Picked: {new Date(booking.slot.starts_at).toLocaleString(undefined, { weekday: 'long', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · 45 min
+            </span>
+          )}
         </label>
         <label>
           Reason (optional)
@@ -140,6 +155,8 @@ export function PatientPanel() {
         </label>
         <button type="submit">Request appointment</button>
       </form>
+      </>
+      )}
     </section>
   );
 }

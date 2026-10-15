@@ -4,6 +4,16 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { Notice, useNotice } from './Notice.jsx';
 import { TokenReveal } from './SecretField.jsx';
 import { StatusFilter } from './Appointments.jsx';
+import { ActiveCalendar } from './ActiveCalendar.jsx';
+import { AvailabilityManager } from './AvailabilityManager.jsx';
+import { PanelTabs } from './Tabs.jsx';
+
+const OWNER_TABS = [
+  { id: 'calendar', label: 'Calendar' },
+  { id: 'availability', label: 'Availability' },
+  { id: 'staff', label: 'Staff' },
+  { id: 'reports', label: 'Reports' },
+];
 
 export function OwnerPanel() {
   const { token } = useAuth();
@@ -12,17 +22,35 @@ export function OwnerPanel() {
   const [clinicId, setClinicId] = useState('');
   const [staff, setStaff] = useState(null);
   const [invites, setInvites] = useState(null);
-  const [queue, setQueue] = useState(null);
   const [status, setStatus] = useState('');
+  const [refreshToken, setRefreshToken] = useState(0);
   const [inviteForm, setInviteForm] = useState({ email: '', role: 'doctor', name: '', specialization: '' });
   const [lastToken, setLastToken] = useState('');
   const [reportRange, setReportRange] = useState({ from: '', to: '' });
   const [report, setReport] = useState(null);
+  const [tab, setTab] = useState('calendar');
+  const [allDoctors, setAllDoctors] = useState([]);
 
   const ownerApi = useCallback(
     (path, options) => api.owner(token, path, options),
     [token],
   );
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.bookingOptions(token);
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        setAllDoctors(data.doctors ?? []);
+      } catch (_) {
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [token]);
+
+  const clinicDoctors = allDoctors.filter((d) => String(d.clinic_id) === String(clinicId));
 
   const activeClinic = clinics.find((c) => String(c.id) === String(clinicId));
   const clinicLocked = !activeClinic || activeClinic.status !== 'active';
@@ -58,20 +86,15 @@ export function OwnerPanel() {
     }
   }, [ownerApi, notify]);
 
-  const loadQueue = useCallback(async (id, statusFilter) => {
-    if (!id) return;
-    try {
-      const res = await ownerApi(`/clinics/${id}/appointments${statusFilter ? `?status=${encodeURIComponent(statusFilter)}` : ''}`);
-      if (!res.ok) {
-        notify(await readError(res, 'Showing queue failed.'), 'error');
-        return;
-      }
-      const data = await res.json();
-      setQueue(data.appointments);
-    } catch (err) {
-      notify(err.message, 'error');
+  const loadRange = useCallback(async ({ from, to }) => {
+    if (!clinicId) return [];
+    const res = await api.ownerAppointments(token, clinicId, status, { from, to });
+    if (!res.ok) {
+      throw new Error(await readError(res, 'Loading this month failed.'));
     }
-  }, [ownerApi, notify]);
+    const data = await res.json();
+    return data.appointments || [];
+  }, [token, clinicId, status]);
 
   const loadClinics = useCallback(async () => {
     try {
@@ -100,14 +123,13 @@ export function OwnerPanel() {
     if (!clinicId) return;
     loadStaff(clinicId);
     loadInvites(clinicId);
-    loadQueue(clinicId, status);
-  }, [clinicId, loadStaff, loadInvites, loadQueue]);
+  }, [clinicId, loadStaff, loadInvites]);
 
   const reloadAll = () => {
     if (!clinicId) return;
     loadStaff(clinicId);
     loadInvites(clinicId);
-    loadQueue(clinicId, status);
+    setRefreshToken((n) => n + 1);
   };
 
   const submitInvite = async (e) => {
@@ -210,7 +232,7 @@ export function OwnerPanel() {
       if (res.ok) {
         const data = await res.json();
         notify(data.message || `Appointment ${decision}d.`, 'success');
-        loadQueue(clinicId, status);
+        setRefreshToken((n) => n + 1);
       } else {
         notify(await readError(res, `${decision} failed.`), 'error');
       }
@@ -224,7 +246,7 @@ export function OwnerPanel() {
       const res = await api.cancelAppointment(token, id);
       if (res.ok) {
         notify('Appointment cancelled.', 'success');
-        loadQueue(clinicId, status);
+        setRefreshToken((n) => n + 1);
       } else {
         notify(await readError(res, 'Cancellation failed.'), 'error');
       }
@@ -284,7 +306,21 @@ export function OwnerPanel() {
           This clinic is pending platform verification. Staff invites unlock after an admin approves it.
         </p>
       )}
+      <PanelTabs tabs={OWNER_TABS} active={tab} onChange={setTab} label="Clinic owner sections" />
 
+      {tab === 'availability' && (
+      <>
+      <h3>Availability</h3>
+      <p>Publish 45-minute slots patients can book at the selected clinic.</p>
+      <div>
+        {!clinicId ? <p className="muted">Select a clinic above first.</p>
+          : <AvailabilityManager token={token} doctors={clinicDoctors} notify={notify} />}
+      </div>
+      </>
+      )}
+
+      {tab === 'staff' && (
+      <>
       <h3>Staff</h3>
       <div>
         {staff === null ? <p className="muted">Not shown yet.</p>
@@ -333,31 +369,24 @@ export function OwnerPanel() {
               </div>
             ))}
       </div>
+      </>
+      )}
 
-      <h3>Appointment requests</h3>
+      {tab === 'calendar' && (
+      <>
+      <h3>Active calendar</h3>
       <div className="row">
         <StatusFilter id="owner-status" value={status} onChange={setStatus} />
       </div>
-      <p>Approve or reject pending requests, or cancel scheduled ones.</p>
       <div>
-        {queue === null ? <p className="muted">Not shown yet.</p>
-          : queue.length === 0 ? <p className="muted">No appointments at this clinic.</p>
-          : queue.map((a) => (
-            <div className="user-row" key={a.id}>
-              <span className="who">#{a.id} {a.patient_name || ''} → {a.doctor_name || ''}<br />{new Date(a.appointment_date).toLocaleString()} · {a.status}</span>
-              {a.status === 'pending' && (
-                <>
-                  <button type="button" className="approve" onClick={() => decide(a.id, 'approve')}>Approve</button>
-                  <button type="button" className="reject" onClick={() => decide(a.id, 'reject')}>Reject</button>
-                </>
-              )}
-              {(a.status === 'pending' || a.status === 'scheduled') && (
-                <button type="button" onClick={() => cancel(a.id)}>Cancel</button>
-              )}
-            </div>
-          ))}
+        {!clinicId ? <p className="muted">Not shown yet.</p>
+          : <ActiveCalendar loadRange={loadRange} reloadKey={`${clinicId}|${status}|${refreshToken}`} onDecide={decide} onCancel={cancel} />}
       </div>
+      </>
+      )}
 
+      {tab === 'reports' && (
+      <>
       <h3>Reports</h3>
       <div className="row">
         <label>From <input type="date" value={reportRange.from} onChange={(e) => setReportRange((r) => ({ ...r, from: e.target.value }))} /></label>
@@ -383,6 +412,8 @@ export function OwnerPanel() {
             </>
           )}
       </div>
+      </>
+      )}
     </section>
   );
 }

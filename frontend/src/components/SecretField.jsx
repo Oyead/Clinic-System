@@ -16,7 +16,6 @@ function EyeButton({ visible, onToggle, label }) {
   );
 }
 
-// Password input with a show/hide eye toggle. Accepts all native input props.
 export function PasswordInput(props) {
   const [show, setShow] = useState(false);
   return (
@@ -27,7 +26,6 @@ export function PasswordInput(props) {
   );
 }
 
-// Prominent, copyable invite-token display with a show/hide eye toggle.
 export function TokenReveal({ token, title = 'Invite token' }) {
   const [show, setShow] = useState(true);
   const [copied, setCopied] = useState(false);

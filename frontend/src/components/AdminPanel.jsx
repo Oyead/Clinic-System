@@ -4,6 +4,7 @@ import { useAuth, ROLES } from '../context/AuthContext.jsx';
 import { Notice, useNotice } from './Notice.jsx';
 import { PasswordInput, TokenReveal } from './SecretField.jsx';
 import { AppointmentList, StatusFilter } from './Appointments.jsx';
+import { PanelTabs } from './Tabs.jsx';
 
 const initialFilters = {
   role: '',
@@ -29,6 +30,16 @@ const initialForms = {
   link: { patient_id: '', user_id: '' },
 };
 
+const ADMIN_TABS = [
+  { id: 'clinics', label: 'Clinics' },
+  { id: 'admins', label: 'Admins' },
+  { id: 'invites', label: 'Staff invites' },
+  { id: 'users', label: 'Users' },
+  { id: 'patients', label: 'Patients' },
+  { id: 'audit', label: 'Audit log' },
+  { id: 'appointments', label: 'Appointments' },
+];
+
 export function AdminPanel() {
   const { token } = useAuth();
   const [notice, notify] = useNotice();
@@ -36,6 +47,7 @@ export function AdminPanel() {
   const [filters, setFilters] = useState(initialFilters);
   const [data, setData] = useState(initialData);
   const [forms, setForms] = useState(initialForms);
+  const [tab, setTab] = useState('clinics');
 
   const updateFilter = (key, value) => setFilters((prev) => ({ ...prev, [key]: value }));
 
@@ -319,7 +331,10 @@ export function AdminPanel() {
     <section className="card">
       <h2><span className="eyebrow">Administration</span>Console</h2>
       <Notice notice={notice} />
+      <PanelTabs tabs={ADMIN_TABS} active={tab} onChange={setTab} label="Admin sections" />
 
+      {tab === 'clinics' && (
+      <>
       <h3>Clinic approvals <span className="hint">PATCH /api/v1/admin/clinics/:id/approve</span></h3>
       <div className="row"><button type="button" onClick={loadPendingClinics}>Show pending clinics</button></div>
       <div>
@@ -341,7 +356,11 @@ export function AdminPanel() {
         <label>Email<input name="email" type="email" required placeholder="e.g. clinic@example.com" value={clinicForm.email} onChange={(e) => handleFormChange('clinic', e)} /></label>
         <button type="submit">Create clinic</button>
       </form>
+      </>
+      )}
 
+      {tab === 'admins' && (
+      <>
       <h3>Create admin <span className="hint">POST /api/v1/admin/admins</span></h3>
       <p className="hint">Admins have no signup path — additional admins are created here only, by an existing admin.</p>
       <form className="profile-fields" noValidate onSubmit={submitAdmin}>
@@ -349,7 +368,11 @@ export function AdminPanel() {
         <label>Password (min 8 characters)<PasswordInput name="password" required minLength={8} value={adminForm.password} onChange={(e) => handleFormChange('admin', e)} /></label>
         <button type="submit">Create admin</button>
       </form>
+      </>
+      )}
 
+      {tab === 'invites' && (
+      <>
       <h3>Invite staff (support override) <span className="hint">POST /api/v1/admin/staff/invite</span></h3>
       <p className="hint">Normally owners invite their own staff. Admins use this only for support. Role derives from this endpoint — never from client-editable role fields.</p>
       <form className="profile-fields" noValidate onSubmit={submitInvite}>
@@ -369,7 +392,11 @@ export function AdminPanel() {
       {inviteToken && (
         <TokenReveal token={inviteToken} title="Staff invite token — share it with the invitee" />
       )}
+      </>
+      )}
 
+      {tab === 'users' && (
+      <>
       <h3>Users <span className="hint">GET /api/v1/admin/users · lifecycle: suspend / reinstate / offboard</span></h3>
       <p className="hint">Roles derive from signup/invite flows and are never edited in place. Moving a staffer between clinics means offboard-and-reinvite.</p>
       <div className="row">
@@ -395,12 +422,16 @@ export function AdminPanel() {
         </label>
       </div>
       <div>
-        {usersShowing ? <p className="muted">Showing…</p>
+        {usersLoading ? <p className="muted">Showing…</p>
           : users === null ? <p className="muted">Not shown yet.</p>
           : users.length === 0 ? <p className="muted">No users found.</p>
           : <UserRows users={users} onSuspend={suspendUser} onReinstate={reinstateUser} onOffboard={offboardUser} />}
       </div>
+      </>
+      )}
 
+      {tab === 'patients' && (
+      <>
       <h3>Patients <span className="hint">GET /api/v1/admin/patients · PUT /api/v1/admin/patients/:id/link-user</span></h3>
       <div className="row"><button type="button" onClick={loadPatients}>Show patients</button></div>
       <div className="row" style={{ marginTop: 8 }}>
@@ -420,7 +451,11 @@ export function AdminPanel() {
         <label>User ID (must have role patient)<input name="user_id" type="number" min={1} required value={linkForm.user_id} onChange={(e) => handleFormChange('link', e)} /></label>
         <button type="submit">Link patient to user</button>
       </form>
+      </>
+      )}
 
+      {tab === 'audit' && (
+      <>
       <h3>Audit log <span className="hint">GET /api/v1/admin/audit-logs</span></h3>
       <div>
         {audit === null ? <p className="muted">Not shown yet.</p>
@@ -435,7 +470,11 @@ export function AdminPanel() {
             );
           })}
       </div>
+      </>
+      )}
 
+      {tab === 'appointments' && (
+      <>
       <h3>All appointments <span className="hint">GET /api/v1/appointments/ (admin sees all)</span></h3>
       <div className="row">
         <StatusFilter id="admin-appt-status" value={queueStatus} onChange={(value) => updateFilter('queueStatus', value)} />
@@ -443,6 +482,8 @@ export function AdminPanel() {
       </div>
       <p className="hint">approve: PATCH /api/v1/appointments/:id/approve · reject: PATCH /api/v1/appointments/:id/reject · cancel: PATCH /api/v1/appointments/:id/cancel</p>
       <div>{queue === null ? <p className="muted">Not shown yet.</p> : <AppointmentList appointments={queue} emptyText="No appointments yet." onDecide={decide} onCancel={cancel} />}</div>
+      </>
+      )}
     </section>
   );
 }

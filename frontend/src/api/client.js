@@ -3,8 +3,6 @@ export async function readError(res, fallback) {
     const data = await res.json();
     if (data && data.error) return data.error;
   } catch (_) {
-    // Non-JSON body (proxy/gateway HTML page, empty response, …): fall through
-    // to the status-annotated fallback below so the real cause is never hidden.
   }
   const detail = res && res.status ? ` (HTTP ${res.status}${res.statusText ? ` ${res.statusText}` : ''})` : '';
   return `${fallback}${detail}`;
@@ -15,6 +13,15 @@ export function authHeaders(token) {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${token}`,
   };
+}
+
+export function buildRangeQuery(status, range) {
+  const params = new URLSearchParams();
+  if (status) params.set('status', status);
+  if (range && range.from) params.set('from', range.from);
+  if (range && range.to) params.set('to', range.to);
+  const qs = params.toString();
+  return qs ? `?${qs}` : '';
 }
 
 async function request(path, { token, ...options } = {}) {
@@ -105,8 +112,8 @@ export const api = {
 
   adminAuditLogs: (token) => request('/api/v1/admin/audit-logs', { token }),
 
-  appointments: (token, status) =>
-    request(`/api/v1/appointments/${status ? `?status=${encodeURIComponent(status)}` : ''}`, { token }),
+  appointments: (token, status, range) =>
+    request(`/api/v1/appointments/${buildRangeQuery(status, range)}`, { token }),
 
   decideAppointment: (token, id, decision) =>
     request(`/api/v1/appointments/${id}/${decision}`, { token, method: 'PATCH' }),
@@ -116,11 +123,29 @@ export const api = {
 
   bookingOptions: (token) => request('/api/v1/appointments/booking-options', { token }),
 
-  myAppointments: (token) => request('/api/v1/appointments/mine', { token }),
+  myAppointments: (token, range) => request(`/api/v1/appointments/mine${buildRangeQuery('', range)}`, { token }),
+
+  availability: (token, params = {}) => {
+    const qs = new URLSearchParams();
+    for (const k of ['doctor_id', 'clinic_id', 'status', 'from', 'to']) {
+      if (params[k] !== undefined && params[k] !== null && params[k] !== '') qs.set(k, params[k]);
+    }
+    const str = qs.toString();
+    return request(`/api/v1/availability${str ? `?${str}` : ''}`, { token });
+  },
+
+  createAvailability: (token, body) =>
+    request('/api/v1/availability', { token, method: 'POST', body: JSON.stringify(body) }),
+
+  deleteAvailability: (token, id) =>
+    request(`/api/v1/availability/${id}`, { token, method: 'DELETE' }),
 
   bookAppointment: (token, body) =>
     request('/api/v1/appointments/', { token, method: 'POST', body: JSON.stringify(body) }),
 
   owner: (token, path, options = {}) =>
     request(`/api/v1/owner${path}`, { token, ...options }),
+
+  ownerAppointments: (token, clinicId, status, range) =>
+    request(`/api/v1/owner/clinics/${clinicId}/appointments${buildRangeQuery(status, range)}`, { token }),
 };
