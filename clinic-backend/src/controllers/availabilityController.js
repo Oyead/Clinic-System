@@ -1,4 +1,4 @@
-const appointmentModel = require('./appointmentModel');
+const appointmentModel = require('../models/appointmentModel');
 const availabilityModel = require('../models/availabilityModel');
 const adminModel = require('../models/adminModel');
 const ownerModel = require('../models/ownerModel');
