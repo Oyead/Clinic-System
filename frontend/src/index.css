@@ -866,6 +866,15 @@ label {
   color: var(--ink);
 }
 
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--ink);
+}
+
 input,
 select {
   font: inherit;
@@ -1109,6 +1118,197 @@ button[type="button"] {
   color: var(--success);
 }
 
+/* Bottom-left non-modal notification card (success / error) */
+.popup-stack {
+  position: fixed;
+  left: 20px;
+  bottom: 20px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.popup {
+  position: relative;
+  width: min(400px, calc(100vw - 40px));
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-left-width: 5px;
+  border-radius: 14px;
+  box-shadow: 0 18px 44px rgba(16, 34, 47, 0.16);
+  padding: 12px 36px 12px 12px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  text-align: left;
+  gap: 12px;
+  animation: popup-in 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.popup-success {
+  border-left-color: var(--success);
+}
+
+.popup-error {
+  border-left-color: var(--danger);
+}
+
+.popup.leaving {
+  opacity: 0;
+  transform: translateY(10px) scale(0.98);
+  pointer-events: none;
+}
+
+.popup-close {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #b6c2cc;
+  font-size: 1.4rem;
+  font-weight: 400;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.popup-close:hover {
+  color: var(--ink);
+  background: var(--bg);
+}
+
+.popup-icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+.popup-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.popup-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.popup-icon-success {
+  filter: drop-shadow(0 0 18px rgba(30, 127, 79, 0.45));
+}
+
+.popup-icon-error {
+  filter: drop-shadow(0 0 18px rgba(179, 64, 46, 0.45));
+}
+
+.popup-icon-ring-success {
+  fill: var(--success);
+}
+
+.popup-icon-ring-error {
+  fill: var(--danger);
+}
+
+.popup-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  text-align: left;
+}
+
+.popup-text {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+.popup-text .form-link {
+  white-space: nowrap;
+}
+
+.popup-action {
+  flex: none;
+  align-self: center;
+  margin-top: 0;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 14px;
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+  color: #fff;
+  cursor: pointer;
+}
+
+.popup-action-success {
+  background: var(--success);
+}
+
+.popup-action-success:hover {
+  filter: brightness(0.92);
+}
+
+.popup-action-error {
+  background: var(--danger);
+}
+
+.popup-action-error:hover {
+  filter: brightness(0.92);
+}
+
+@keyframes popup-in {
+  from {
+    opacity: 0;
+    transform: translateX(-16px) translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .popup,
+  .popup-stack,
+  .cal-day,
+  .cal-day-num,
+  .mini-cal-day {
+    animation: none;
+    transition: none;
+  }
+  .cal-day.has-active:hover,
+  .cal-day:not(.has-active):hover,
+  .mini-cal-day:not(.past):hover {
+    transform: none;
+  }
+}
+
 body[data-role="admin"] {
   --accent: #174a7c;
   --accent-dark: #0f3559;
@@ -1263,6 +1463,57 @@ body[data-role="patient"] {
   background: var(--accent-dark);
 }
 
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.modal-actions form {
+  display: contents;
+}
+
+.btn-confirm {
+  border: none;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #ffffff;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 14px 28px;
+  cursor: pointer;
+  box-shadow: 0 12px 26px rgba(27, 127, 224, 0.35);
+}
+
+.btn-confirm:hover {
+  background: var(--accent-dark);
+}
+
+.btn-danger {
+  border: none;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #ffffff;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 14px 28px;
+  cursor: pointer;
+}
+
+.btn-danger:hover {
+  filter: brightness(0.92);
+}
+
+.btn-confirm:disabled,
+.btn-danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .cal-wrap {
   display: flex;
   flex-direction: column;
@@ -1382,6 +1633,7 @@ body[data-role="patient"] {
   color: var(--ink);
   font: inherit;
   text-align: left;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease, background 0.16s ease;
 }
 
 .cal-day.out {
@@ -1404,6 +1656,7 @@ body[data-role="patient"] {
   justify-content: center;
   border-radius: 10px;
   background: var(--surface-blue);
+  transition: background 0.16s ease, color 0.16s ease, transform 0.16s ease;
 }
 
 .cal-day.has-active {
@@ -1413,7 +1666,30 @@ body[data-role="patient"] {
   box-shadow: var(--shadow-sm);
 }
 
-.cal-day.has-active:hover {
+.cal-day.has-active:hover,
+.cal-day.has-active:focus-visible {
+  background: var(--surface-blue-deep);
+  border-color: var(--accent-dark);
+  box-shadow: var(--shadow);
+  transform: translateY(-3px);
+}
+
+.cal-day.has-active:hover .cal-day-num,
+.cal-day.has-active:focus-visible .cal-day-num {
+  background: var(--accent);
+  color: #fff;
+  transform: scale(1.06);
+}
+
+/* Empty days are disabled buttons, but still give subtle hover feedback */
+.cal-day:not(.has-active):hover,
+.cal-day:not(.has-active):focus-visible {
+  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.cal-day:not(.has-active):hover .cal-day-num,
+.cal-day:not(.has-active):focus-visible .cal-day-num {
   background: var(--surface-blue-deep);
 }
 
@@ -1581,12 +1857,14 @@ body[data-role="patient"] {
   font-size: 0.86rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
-.mini-cal-day:hover {
+.mini-cal-day:not(.past):hover,
+.mini-cal-day:not(.past):focus-visible {
   background: var(--surface-blue-deep);
   border-color: var(--accent);
+  color: var(--accent-dark);
 }
 
 .mini-cal-day.past {
@@ -1615,8 +1893,10 @@ body[data-role="patient"] {
   font-weight: 800;
 }
 
-.mini-cal-day.has-appts:hover {
-  border-color: var(--accent);
+.mini-cal-day.has-appts:hover,
+.mini-cal-day.has-appts:focus-visible {
+  border-color: var(--accent-dark);
+  background: var(--surface-blue-deep);
 }
 
 .mini-cal-day.selected {

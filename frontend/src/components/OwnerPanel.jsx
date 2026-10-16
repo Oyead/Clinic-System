@@ -2,11 +2,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, readError } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Notice, useNotice } from './Notice.jsx';
+import { ConfirmDialog } from './ConfirmDialog.jsx';
 import { TokenReveal } from './SecretField.jsx';
 import { StatusFilter } from './Appointments.jsx';
 import { ActiveCalendar } from './ActiveCalendar.jsx';
 import { AvailabilityManager } from './AvailabilityManager.jsx';
-import { PanelTabs } from './Tabs.jsx';
+import { PanelTabs, usePersistentTab } from './Tabs.jsx';
 
 const OWNER_TABS = [
   { id: 'calendar', label: 'Calendar' },
@@ -17,7 +18,7 @@ const OWNER_TABS = [
 
 export function OwnerPanel() {
   const { token } = useAuth();
-  const [notice, notify] = useNotice();
+  const [notice, notify, dismissNotice] = useNotice();
   const [clinics, setClinics] = useState([]);
   const [clinicId, setClinicId] = useState('');
   const [staff, setStaff] = useState(null);
@@ -28,8 +29,10 @@ export function OwnerPanel() {
   const [lastToken, setLastToken] = useState('');
   const [reportRange, setReportRange] = useState({ from: '', to: '' });
   const [report, setReport] = useState(null);
-  const [tab, setTab] = useState('calendar');
+  const [tab, setTab] = usePersistentTab('clinic.tab.owner', 'calendar', OWNER_TABS.map((t) => t.id));
   const [allDoctors, setAllDoctors] = useState([]);
+  const [confirm, setConfirm] = useState(null);
+  const [busy, setBusy] = useState(false);
 
   const ownerApi = useCallback(
     (path, options) => api.owner(token, path, options),
@@ -181,48 +184,77 @@ export function OwnerPanel() {
   };
 
   const revokeInvite = async (inviteId) => {
-    if (!window.confirm('Revoke this invite? The never-activated account is offboarded and the email freed.')) return;
-    try {
-      const res = await ownerApi(`/clinics/${clinicId}/invites/${inviteId}`, { method: 'DELETE' });
-      if (res.ok) {
-        notify('Invite revoked.', 'success');
-        loadStaff(clinicId);
-        loadInvites(clinicId);
-      } else {
-        notify(await readError(res, 'Revoking invite failed.'), 'error');
-      }
-    } catch (err) {
-      notify(err.message, 'error');
-    }
+    setConfirm({ action: 'revoke', id: inviteId });
   };
 
   const suspendStaff = async (userId) => {
-    if (!window.confirm(`Suspend staff #${userId}? They lose access until reinstated or offboarded.`)) return;
-    try {
-      const res = await ownerApi(`/clinics/${clinicId}/staff/${userId}/suspend`, { method: 'POST' });
-      if (res.ok) {
-        notify('Staff suspended.', 'success');
-        loadStaff(clinicId);
-      } else {
-        notify(await readError(res, 'Suspending staff failed.'), 'error');
-      }
-    } catch (err) {
-      notify(err.message, 'error');
-    }
+    setConfirm({ action: 'suspend', id: userId });
   };
 
   const offboardStaff = async (userId) => {
-    if (!window.confirm(`Offboard staff #${userId}? Clean departure: access removed, email anonymized and freed.`)) return;
+    setConfirm({ action: 'offboard', id: userId });
+  };
+
+  const CONFIRM_COPY = {
+    revoke: {
+      title: 'Revoke this invite?',
+      message: 'The never-activated account is offboarded and the email freed.',
+      confirmLabel: 'Revoke invite',
+    },
+    suspend: (id) => ({
+      title: `Suspend staff #${id}?`,
+      message: 'They lose access until reinstated or offboarded.',
+      confirmLabel: 'Suspend staff',
+    }),
+    offboard: (id) => ({
+      title: `Offboard staff #${id}?`,
+      message: 'Clean departure: access removed, email anonymized and freed.',
+      confirmLabel: 'Offboard staff',
+    }),
+  };
+
+  const describeConfirm = () => {
+    if (!confirm) return { title: '', message: '', confirmLabel: 'Confirm' };
+    if (confirm.action === 'revoke') return CONFIRM_COPY.revoke;
+    if (confirm.action === 'suspend') return CONFIRM_COPY.suspend(confirm.id);
+    return CONFIRM_COPY.offboard(confirm.id);
+  };
+
+  const handleConfirmAction = async () => {
+    if (!confirm) return;
+    const { action, id } = confirm;
+    setBusy(true);
     try {
-      const res = await ownerApi(`/clinics/${clinicId}/staff/${userId}/offboard`, { method: 'POST' });
+      const res = action === 'revoke'
+        ? await ownerApi(`/clinics/${clinicId}/invites/${id}`, { method: 'DELETE' })
+        : action === 'suspend'
+          ? await ownerApi(`/clinics/${clinicId}/staff/${id}/suspend`, { method: 'POST' })
+          : await ownerApi(`/clinics/${clinicId}/staff/${id}/offboard`, { method: 'POST' });
       if (res.ok) {
-        notify('Staff offboarded.', 'success');
+        notify(
+          action === 'revoke' ? 'Invite revoked.'
+            : action === 'suspend' ? 'Staff suspended.'
+              : 'Staff offboarded.',
+          'success',
+        );
         loadStaff(clinicId);
+        if (action === 'revoke') loadInvites(clinicId);
       } else {
-        notify(await readError(res, 'Offboarding staff failed.'), 'error');
+        notify(
+          await readError(
+            res,
+            action === 'revoke' ? 'Revoking invite failed.'
+              : action === 'suspend' ? 'Suspending staff failed.'
+                : 'Offboarding staff failed.',
+          ),
+          'error',
+        );
       }
     } catch (err) {
       notify(err.message, 'error');
+    } finally {
+      setBusy(false);
+      setConfirm(null);
     }
   };
 
@@ -294,7 +326,7 @@ export function OwnerPanel() {
   return (
     <section className="card">
       <h2><span className="eyebrow">Clinic owner</span>My clinics</h2>
-      <Notice notice={notice} />
+      <Notice notice={notice} onClose={dismissNotice} />
       <div className="row">
         <select value={clinicId} onChange={(e) => setClinicId(e.target.value)}>
           {clinics.map((c) => <option key={c.id} value={c.id}>{c.name}{c.status && c.status !== 'active' ? ` (${c.status})` : ''}</option>)}
@@ -414,6 +446,16 @@ export function OwnerPanel() {
       </div>
       </>
       )}
+      <ConfirmDialog
+        open={Boolean(confirm)}
+        title={describeConfirm().title}
+        message={describeConfirm().message}
+        confirmLabel={describeConfirm().confirmLabel}
+        danger
+        busy={busy}
+        onConfirm={handleConfirmAction}
+        onCancel={() => setConfirm(null)}
+      />
     </section>
   );
 }

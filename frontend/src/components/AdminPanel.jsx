@@ -2,9 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, readError } from '../api/client.js';
 import { useAuth, ROLES } from '../context/AuthContext.jsx';
 import { Notice, useNotice } from './Notice.jsx';
+import { ConfirmDialog, PasswordDialog } from './ConfirmDialog.jsx';
 import { PasswordInput, TokenReveal } from './SecretField.jsx';
 import { AppointmentList, StatusFilter } from './Appointments.jsx';
-import { PanelTabs } from './Tabs.jsx';
+import { PanelTabs, usePersistentTab } from './Tabs.jsx';
 
 const initialFilters = {
   role: '',
@@ -42,12 +43,15 @@ const ADMIN_TABS = [
 
 export function AdminPanel() {
   const { token } = useAuth();
-  const [notice, notify] = useNotice();
+  const [notice, notify, dismissNotice] = useNotice();
   const [inviteToken, setInviteToken] = useState(null);
   const [filters, setFilters] = useState(initialFilters);
   const [data, setData] = useState(initialData);
   const [forms, setForms] = useState(initialForms);
-  const [tab, setTab] = useState('clinics');
+  const [tab, setTab] = usePersistentTab('clinic.tab.admin', 'clinics', ADMIN_TABS.map((t) => t.id));
+  const [confirm, setConfirm] = useState(null);
+  const [reinstateId, setReinstateId] = useState(null);
+  const [busy, setBusy] = useState(false);
 
   const updateFilter = (key, value) => setFilters((prev) => ({ ...prev, [key]: value }));
 
@@ -139,48 +143,55 @@ export function AdminPanel() {
   };
 
   const suspendUser = async (id) => {
-    if (!window.confirm(`Suspend user #${id}? Email stays blocked until reinstated or offboarded.`)) return;
-    try {
-      const res = await api.adminSuspendUser(token, id);
-      if (res.ok) {
-        notify('User suspended.', 'success');
-        loadUsers();
-      } else {
-        notify(await readError(res, 'Suspending user failed.'), 'error');
-      }
-    } catch (err) {
-      notify(err.message, 'error');
-    }
+    setConfirm({ action: 'suspend', id });
   };
 
   const reinstateUser = async (id) => {
-    const password = window.prompt(`New password for user #${id} (min 8 characters)?`);
-    if (!password) return;
+    setReinstateId(id);
+  };
+
+  const offboardUser = async (id) => {
+    setConfirm({ action: 'offboard', id });
+  };
+
+  const handleConfirmAction = async () => {
+    if (!confirm) return;
+    const { action, id } = confirm;
+    setBusy(true);
     try {
-      const res = await api.adminReinstateUser(token, id, password);
+      const res = action === 'suspend'
+        ? await api.adminSuspendUser(token, id)
+        : await api.adminOffboardUser(token, id);
+      if (res.ok) {
+        notify(action === 'suspend' ? 'User suspended.' : 'User offboarded.', 'success');
+        loadUsers();
+      } else {
+        notify(await readError(res, action === 'suspend' ? 'Suspending user failed.' : 'Offboarding user failed.'), 'error');
+      }
+    } catch (err) {
+      notify(err.message, 'error');
+    } finally {
+      setBusy(false);
+      setConfirm(null);
+    }
+  };
+
+  const handleReinstateSubmit = async (password) => {
+    if (reinstateId === null) return;
+    setBusy(true);
+    try {
+      const res = await api.adminReinstateUser(token, reinstateId, password);
       if (res.ok) {
         notify('User reinstated with a fresh password.', 'success');
         loadUsers();
+        setReinstateId(null);
       } else {
         notify(await readError(res, 'Reinstating user failed.'), 'error');
       }
     } catch (err) {
       notify(err.message, 'error');
-    }
-  };
-
-  const offboardUser = async (id) => {
-    if (!window.confirm(`Offboard user #${id}? Clean departure: email anonymized and freed.`)) return;
-    try {
-      const res = await api.adminOffboardUser(token, id);
-      if (res.ok) {
-        notify('User offboarded.', 'success');
-        loadUsers();
-      } else {
-        notify(await readError(res, 'Offboarding user failed.'), 'error');
-      }
-    } catch (err) {
-      notify(err.message, 'error');
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -330,7 +341,7 @@ export function AdminPanel() {
   return (
     <section className="card">
       <h2><span className="eyebrow">Administration</span>Console</h2>
-      <Notice notice={notice} />
+      <Notice notice={notice} onClose={dismissNotice} />
       <PanelTabs tabs={ADMIN_TABS} active={tab} onChange={setTab} label="Admin sections" />
 
       {tab === 'clinics' && (
@@ -484,6 +495,26 @@ export function AdminPanel() {
       <div>{queue === null ? <p className="muted">Not shown yet.</p> : <AppointmentList appointments={queue} emptyText="No appointments yet." onDecide={decide} onCancel={cancel} />}</div>
       </>
       )}
+      <ConfirmDialog
+        open={Boolean(confirm)}
+        title={confirm?.action === 'suspend' ? `Suspend user #${confirm?.id}?` : `Offboard user #${confirm?.id}?`}
+        message={confirm?.action === 'suspend'
+          ? 'Email stays blocked until reinstated or offboarded.'
+          : 'Clean departure: email anonymized and freed.'}
+        confirmLabel={confirm?.action === 'suspend' ? 'Suspend user' : 'Offboard user'}
+        danger
+        busy={busy}
+        onConfirm={handleConfirmAction}
+        onCancel={() => setConfirm(null)}
+      />
+      <PasswordDialog
+        open={reinstateId !== null}
+        title={`New password for user #${reinstateId}?`}
+        message="Minimum 8 characters. The user signs in with this password."
+        busy={busy}
+        onSubmit={handleReinstateSubmit}
+        onCancel={() => setReinstateId(null)}
+      />
     </section>
   );
 }

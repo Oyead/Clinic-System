@@ -5,7 +5,7 @@ import { Notice, useNotice } from './Notice.jsx';
 import { StatusFilter } from './Appointments.jsx';
 import { ActiveCalendar } from './ActiveCalendar.jsx';
 import { AvailabilityManager } from './AvailabilityManager.jsx';
-import { PanelTabs } from './Tabs.jsx';
+import { PanelTabs, usePersistentTab } from './Tabs.jsx';
 
 const STAFF_TABS = [
   { id: 'calendar', label: 'Calendar' },
@@ -15,8 +15,8 @@ const STAFF_TABS = [
 
 export function StaffPanel() {
   const { token } = useAuth();
-  const [notice, notify] = useNotice();
-  const [tab, setTab] = useState('calendar');
+  const [notice, notify, dismissNotice] = useNotice();
+  const [tab, setTab] = usePersistentTab('clinic.tab.staff', 'calendar', STAFF_TABS.map((t) => t.id));
   const [status, setStatus] = useState('');
   const [refreshToken, setRefreshToken] = useState(0);
   const [options, setOptions] = useState(null);
@@ -82,7 +82,7 @@ export function StaffPanel() {
   return (
     <section className="card">
       <h2><span className="eyebrow">Care team</span>Dashboard</h2>
-      <Notice notice={notice} />
+      <Notice notice={notice} onClose={dismissNotice} />
       <PanelTabs tabs={STAFF_TABS} active={tab} onChange={setTab} label="Care team sections" />
       {tab === 'calendar' && (
       <>

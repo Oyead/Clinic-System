@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, readError } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Notice, useNotice } from './Notice.jsx';
-import { PanelTabs } from './Tabs.jsx';
+import { PanelTabs, usePersistentTab } from './Tabs.jsx';
 import { PatientMiniCalendar } from './PatientMiniCalendar.jsx';
 import { SlotPickerCalendar } from './SlotPickerCalendar.jsx';
 
@@ -13,8 +13,8 @@ const PATIENT_TABS = [
 
 export function PatientPanel() {
   const { token } = useAuth();
-  const [notice, notify] = useNotice();
-  const [tab, setTab] = useState('appointments');
+  const [notice, notify, dismissNotice] = useNotice();
+  const [tab, setTab] = usePersistentTab('clinic.tab.patient', 'appointments', PATIENT_TABS.map((t) => t.id));
   const [refreshToken, setRefreshToken] = useState(0);
   const [clinics, setClinics] = useState([]);
   const [doctors, setDoctors] = useState([]);
@@ -100,7 +100,7 @@ export function PatientPanel() {
   return (
     <section className="card">
       <h2><span className="eyebrow">My care</span>Dashboard</h2>
-      <Notice notice={notice} />
+      <Notice notice={notice} onClose={dismissNotice} />
       <PanelTabs tabs={PATIENT_TABS} active={tab} onChange={setTab} label="Patient sections" />
       {tab === 'appointments' && (
       <>
@@ -129,8 +129,8 @@ export function PatientPanel() {
             {doctorOptions.map((d) => <option key={d.id} value={d.id}>{d.name} ({d.specialization || ''})</option>)}
           </select>
         </label>
-        <label>
-          Open 45-minute slots — pick a dotted day, then a time
+        <div className="field">
+          <span>Open 45-minute slots — pick a dotted day, then a time</span>
           {booking.clinic_id && booking.doctor_id ? (
             <SlotPickerCalendar
               key={`${booking.clinic_id}|${booking.doctor_id}`}
@@ -148,7 +148,7 @@ export function PatientPanel() {
               Picked: {new Date(booking.slot.starts_at).toLocaleString(undefined, { weekday: 'long', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · 45 min
             </span>
           )}
-        </label>
+        </div>
         <label>
           Reason (optional)
           <input id="book-reason" type="text" value={booking.reason} onChange={(e) => setBooking((b) => ({ ...b, reason: e.target.value }))} />

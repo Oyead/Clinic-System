@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 export function PanelTabs({ tabs, active, onChange, label }) {
   return (
     <div className="tabs" role="tablist" aria-label={label || 'Dashboard sections'}>
@@ -15,4 +17,23 @@ export function PanelTabs({ tabs, active, onChange, label }) {
       ))}
     </div>
   );
+}
+
+export function usePersistentTab(storageKey, defaultTab, validIds) {
+  const [tab, setTabState] = useState(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved && validIds.includes(saved)) return saved;
+    } catch (_) {
+    }
+    return defaultTab;
+  });
+  const setTab = (id) => {
+    setTabState(id);
+    try {
+      localStorage.setItem(storageKey, id);
+    } catch (_) {
+    }
+  };
+  return [tab, setTab];
 }
