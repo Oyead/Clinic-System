@@ -5,7 +5,7 @@ const { requireClinicScope } = require('../middleware/ownerScope');
 
 router.get('/clinics', ownerController.listMyClinics);
 router.get('/clinics/:clinicId/staff', requireClinicScope, ownerController.listStaff);
-// Legacy direct-create retired (410) — invite-only now.
+// Legacy direct-create retired (410) - invite-only now.
 router.post('/clinics/:clinicId/staff', requireClinicScope, ownerController.createStaff);
 router.post('/clinics/:clinicId/staff/invite', requireClinicScope, ownerController.inviteStaff);
 router.get('/clinics/:clinicId/invites', requireClinicScope, ownerController.listInvites);
