@@ -8,6 +8,7 @@ import { StatusFilter } from './Appointments.jsx';
 import { ActiveCalendar } from './ActiveCalendar.jsx';
 import { AvailabilityManager } from './AvailabilityManager.jsx';
 import { PanelTabs, usePersistentTab } from './Tabs.jsx';
+import { FORM_INPUT, BTN_PRIMARY, BTN_SECONDARY, BTN_GHOST, BTN_DANGER, EYEBROW, SECTION_TITLE, statusPill } from './ui.js';
 
 const OWNER_TABS = [
   { id: 'calendar', label: 'Calendar' },
@@ -324,127 +325,188 @@ export function OwnerPanel() {
   };
 
   return (
-    <section className="card">
-      <h2><span className="eyebrow">Clinic owner</span>My clinics</h2>
-      <Notice notice={notice} onClose={dismissNotice} />
-      <div className="row">
-        <select value={clinicId} onChange={(e) => setClinicId(e.target.value)}>
-          {clinics.map((c) => <option key={c.id} value={c.id}>{c.name}{c.status && c.status !== 'active' ? ` (${c.status})` : ''}</option>)}
-        </select>
-        <button type="button" onClick={reloadAll}>Show</button>
+    <section className="rounded-[24px] bg-white p-4 shadow-[var(--shadow)] sm:p-7">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <span className={EYEBROW}>Clinic owner</span>
+          <h2 className="mt-1.5 font-display text-[1.8rem] font-extrabold leading-tight tracking-[-0.04em] text-[var(--color-ink)]">My clinics</h2>
+        </div>
+        <label className="flex min-w-[220px] flex-col gap-1.5 text-[0.72rem] font-bold uppercase tracking-[0.1em] text-[var(--color-ink-soft)]">
+          Active clinic
+          <select className={`${FORM_INPUT} bg-[var(--color-sand)] normal-case tracking-normal`} value={clinicId} onChange={(e) => setClinicId(e.target.value)}>
+            {clinics.map((c) => <option key={c.id} value={c.id}>{c.name}{c.status && c.status !== 'active' ? ` (${c.status})` : ''}</option>)}
+          </select>
+        </label>
       </div>
+      <Notice notice={notice} onClose={dismissNotice} />
       {clinicLocked && (
-        <p className="muted" role="status">
+        <p className="mt-3 rounded-[16px] bg-[rgba(245,196,77,0.28)] px-4 py-3 text-[0.82rem] font-medium text-[#6b5109]" role="status">
           This clinic is pending platform verification. Staff invites unlock after an admin approves it.
         </p>
       )}
-      <PanelTabs tabs={OWNER_TABS} active={tab} onChange={setTab} label="Clinic owner sections" />
+      <div className="mt-5">
+        <PanelTabs tabs={OWNER_TABS} active={tab} onChange={setTab} label="Clinic owner sections" />
+      </div>
 
       {tab === 'availability' && (
-      <>
-      <h3>Availability</h3>
-      <p>Publish 45-minute slots patients can book at the selected clinic.</p>
-      <div>
-        {!clinicId ? <p className="muted">Select a clinic above first.</p>
-          : <AvailabilityManager token={token} doctors={clinicDoctors} notify={notify} />}
-      </div>
-      </>
+        <>
+          <h3 className={`${SECTION_TITLE} mt-6`}>Availability</h3>
+          <div className="mt-4 rounded-[20px] bg-[var(--color-sand)] p-3 sm:p-4">
+            {!clinicId ? <p className="text-[0.85rem] font-medium text-[var(--color-ink-soft)]">Select a clinic above first.</p>
+              : <AvailabilityManager token={token} doctors={clinicDoctors} notify={notify} />}
+          </div>
+        </>
       )}
 
       {tab === 'staff' && (
-      <>
-      <h3>Staff</h3>
-      <div>
-        {staff === null ? <p className="muted">Not shown yet.</p>
-          : staff.length === 0 ? <p className="muted">No staff yet. Send the first invite below.</p>
-          : staff.map((s) => (
-            <div className="user-row" key={s.user_id}>
-              <span className="who">{s.email}<br />{s.role}{s.role === 'doctor' ? ` (${s.specialization || ''})` : ''} · {s.status || (s.is_active ? 'active' : 'inactive')}</span>
-              {s.status === 'active' && (
-                <button type="button" onClick={() => suspendStaff(s.user_id)}>Suspend</button>
-              )}
-              {(s.status === 'active' || s.status === 'suspended') && (
-                <button type="button" className="remove" onClick={() => offboardStaff(s.user_id)}>Offboard</button>
-              )}
-            </div>
-          ))}
-      </div>
-
-      <h3>Invite staff</h3>
-      <p className="hint">Owners invite doctors and receptionists. They set their own password via Accept invite — changing clinics always means offboard-and-reinvite, never an edit.</p>
-      <form noValidate onSubmit={submitInvite} id="form-owner-staff">
-        <label>Email<input type="email" required value={inviteForm.email} onChange={(e) => setInviteForm((f) => ({ ...f, email: e.target.value }))} /></label>
-        <label>Role
-          <select value={inviteForm.role} onChange={(e) => setInviteForm((f) => ({ ...f, role: e.target.value }))}>
-            <option value="doctor">doctor</option>
-            <option value="receptionist">receptionist</option>
-          </select>
-        </label>
-        <label>Name<input type="text" required value={inviteForm.name} onChange={(e) => setInviteForm((f) => ({ ...f, name: e.target.value }))} /></label>
-        <label>Specialization (doctors only)<input type="text" value={inviteForm.specialization} onChange={(e) => setInviteForm((f) => ({ ...f, specialization: e.target.value }))} /></label>
-        <button type="submit" disabled={clinicLocked}>Send invite</button>
-      </form>
-      {lastToken && (
-        <TokenReveal token={lastToken} title="Latest invite token — share it with the invitee" />
-      )}
-
-      <h3>Pending invites</h3>
-      <div>
-        {invites === null ? <p className="muted">Not shown yet.</p>
-          : invites.filter((i) => !i.accepted_at && !i.revoked_at).length === 0
-            ? <p className="muted">No pending invites.</p>
-            : invites.filter((i) => !i.accepted_at && !i.revoked_at).map((i) => (
-              <div className="user-row" key={i.id}>
-                <span className="who">{i.user_email}<br />{i.role} · expires {new Date(i.expires_at).toLocaleString()}</span>
-                <button type="button" onClick={() => resendInvite(i.id)}>Resend</button>
-                <button type="button" className="remove" onClick={() => revokeInvite(i.id)}>Revoke</button>
+        <>
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+            <h3 className={SECTION_TITLE}>Staff</h3>
+            {staff && staff.length > 0 && (
+              <div className="flex items-center" aria-label={`${staff.length} staff members`}>
+                {staff.slice(0, 3).map((s, i) => (
+                  <span
+                    key={s.user_id}
+                    title={s.email}
+                    className={`flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-[var(--color-sand)] font-display text-[0.72rem] font-bold text-[var(--color-ink)] shadow-[var(--shadow-sm)] ${i > 0 ? '-ml-2.5' : ''}`}
+                  >
+                    {(s.email || '?').slice(0, 1).toUpperCase()}
+                  </span>
+                ))}
+                {staff.length > 3 && (
+                  <span className="-ml-2.5 flex h-9 min-w-9 items-center justify-center rounded-full border-2 border-white bg-[var(--color-ink)] px-1.5 text-[0.66rem] font-bold text-white">+{staff.length - 3}</span>
+                )}
               </div>
-            ))}
-      </div>
-      </>
+            )}
+          </div>
+          <div className="mt-3">
+            {staff === null ? <p className="text-[0.85rem] font-medium text-[var(--color-ink-soft)]">Not shown yet.</p>
+              : staff.length === 0 ? <p className="text-[0.85rem] font-medium text-[var(--color-ink-soft)]">No staff yet. Send the first invite below.</p>
+              : (
+                <div className="flex flex-col divide-y divide-[var(--color-line)]">
+                  {staff.map((s) => (
+                    <div className="flex flex-wrap items-center gap-3 py-3.5 text-sm" key={s.user_id}>
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-white bg-[var(--color-sand)] font-display text-[0.8rem] font-bold text-[var(--color-ink)] shadow-[var(--shadow-sm)]">
+                        {(s.email || '?').slice(0, 1).toUpperCase()}
+                      </span>
+                      <span className="min-w-0 flex-1 leading-[1.6] text-[var(--color-ink)]">
+                        {s.email}<br />
+                        <span className="text-[0.8rem] text-[var(--color-ink-soft)]">
+                          {s.role}{s.role === 'doctor' ? ` (${s.specialization || ''})` : ''}
+                        </span>
+                        {' '}
+                        <span className={statusPill(s.status || (s.is_active ? 'active' : 'inactive'))}>{s.status || (s.is_active ? 'active' : 'inactive')}</span>
+                      </span>
+                      <span className="flex flex-wrap gap-2">
+                        {s.status === 'active' && (
+                          <button type="button" className={`${BTN_DANGER} px-3.5 py-1.5 text-xs`} onClick={() => suspendStaff(s.user_id)}>Suspend</button>
+                        )}
+                        {(s.status === 'active' || s.status === 'suspended') && (
+                          <button type="button" className={`${BTN_DANGER} px-3.5 py-1.5 text-xs`} onClick={() => offboardStaff(s.user_id)}>Offboard</button>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+          </div>
+
+          <h3 className={`${SECTION_TITLE} mt-7`}>Invite staff</h3>
+          <form noValidate onSubmit={submitInvite} id="form-owner-staff" className="mt-3 grid gap-3 rounded-[20px] bg-[var(--color-sand)] p-4 sm:grid-cols-2">
+            <label className="flex flex-col gap-1.5 text-[0.8rem] font-bold text-[var(--color-ink)]">
+              Email<input type="email" required className={`${FORM_INPUT} bg-white`} value={inviteForm.email} onChange={(e) => setInviteForm((f) => ({ ...f, email: e.target.value }))} />
+            </label>
+            <label className="flex flex-col gap-1.5 text-[0.8rem] font-bold text-[var(--color-ink)]">
+              Role
+              <select value={inviteForm.role} onChange={(e) => setInviteForm((f) => ({ ...f, role: e.target.value }))} className={`${FORM_INPUT} bg-white`}>
+                <option value="doctor">doctor</option>
+                <option value="receptionist">receptionist</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1.5 text-[0.8rem] font-bold text-[var(--color-ink)]">
+              Name<input type="text" required className={`${FORM_INPUT} bg-white`} value={inviteForm.name} onChange={(e) => setInviteForm((f) => ({ ...f, name: e.target.value }))} />
+            </label>
+            <label className="flex flex-col gap-1.5 text-[0.8rem] font-bold text-[var(--color-ink)]">
+              Specialization <span className="font-medium text-[var(--color-ink-soft)]">doctors only</span>
+              <input type="text" className={`${FORM_INPUT} bg-white`} value={inviteForm.specialization} onChange={(e) => setInviteForm((f) => ({ ...f, specialization: e.target.value }))} />
+            </label>
+            <button type="submit" className={`${BTN_PRIMARY} w-fit px-6 py-2.5 text-sm sm:col-span-2`} disabled={clinicLocked}>Send invite</button>
+          </form>
+          {lastToken && (
+            <TokenReveal token={lastToken} title="Latest invite token - share it with the invitee" />
+          )}
+
+          <h3 className={`${SECTION_TITLE} mt-7`}>Pending invites</h3>
+          <div className="mt-2">
+            {invites === null ? <p className="text-[0.85rem] font-medium text-[var(--color-ink-soft)]">Not shown yet.</p>
+              : invites.filter((i) => !i.accepted_at && !i.revoked_at).length === 0
+                ? <p className="text-[0.85rem] font-medium text-[var(--color-ink-soft)]">No pending invites.</p>
+                : (
+                  <div className="flex flex-col divide-y divide-[var(--color-line)]">
+                    {invites.filter((i) => !i.accepted_at && !i.revoked_at).map((i) => (
+                      <div className="flex flex-wrap items-center gap-3 py-3.5 text-sm" key={i.id}>
+                        <span className="min-w-0 flex-1 leading-[1.6] text-[var(--color-ink)]">
+                          {i.user_email}<br />
+                          <span className="text-[0.8rem] text-[var(--color-ink-soft)]">{i.role} · expires {new Date(i.expires_at).toLocaleString()}</span>
+                        </span>
+                        <span className={statusPill('invited')}>invited</span>
+                        <span className="flex flex-wrap gap-2">
+                          <button type="button" className={`${BTN_GHOST} px-3.5 py-1.5 text-xs`} onClick={() => resendInvite(i.id)}>Resend</button>
+                          <button type="button" className={`${BTN_DANGER} px-3.5 py-1.5 text-xs`} onClick={() => revokeInvite(i.id)}>Revoke</button>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+          </div>
+        </>
       )}
 
       {tab === 'calendar' && (
-      <>
-      <h3>Active calendar</h3>
-      <div className="row">
-        <StatusFilter id="owner-status" value={status} onChange={setStatus} />
-      </div>
-      <div>
-        {!clinicId ? <p className="muted">Not shown yet.</p>
-          : <ActiveCalendar loadRange={loadRange} reloadKey={`${clinicId}|${status}|${refreshToken}`} onDecide={decide} onCancel={cancel} />}
-      </div>
-      </>
+        <>
+          <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
+            <h3 className={SECTION_TITLE}>Active calendar</h3>
+            <StatusFilter id="owner-status" value={status} onChange={setStatus} />
+          </div>
+          <div className="mt-4 rounded-[20px] bg-[var(--color-sand)] p-3 sm:p-4">
+            {!clinicId ? <p className="text-[0.85rem] font-medium text-[var(--color-ink-soft)]">Not shown yet.</p>
+              : <ActiveCalendar loadRange={loadRange} reloadKey={`${clinicId}|${status}|${refreshToken}`} onDecide={decide} onCancel={cancel} />}
+          </div>
+        </>
       )}
 
       {tab === 'reports' && (
-      <>
-      <h3>Reports</h3>
-      <div className="row">
-        <label>From <input type="date" value={reportRange.from} onChange={(e) => setReportRange((r) => ({ ...r, from: e.target.value }))} /></label>
-        <label>To <input type="date" value={reportRange.to} onChange={(e) => setReportRange((r) => ({ ...r, to: e.target.value }))} /></label>
-      </div>
-      <div className="row" style={{ marginTop: 8 }}>
-        <button type="button" onClick={loadApptReport}>Appointments report</button>
-        <button type="button" onClick={loadBillingReport}>Billing report</button>
-      </div>
-      <div>
-        {report === null ? <p className="muted">Not shown yet.</p>
-          : report.type === 'appointments' ? (
-            <>
-              <h4>By status</h4>
-              <ReportTable headers={['Status', 'Count']} rows={report.data.by_status.map((r) => [r.status, r.count])} />
-              <h4>Per doctor</h4>
-              <ReportTable headers={['Doctor', 'Status', 'Count']} rows={report.data.per_doctor.map((r) => [r.doctor_name, r.status, r.count])} />
-            </>
-          ) : (
-            <>
-              <h4>Overall: {report.data.overall.bills} bills, total {report.data.overall.total}</h4>
-              <ReportTable headers={['Payment status', 'Bills', 'Total']} rows={report.data.by_payment_status.map((r) => [r.payment_status || '—', r.bills, r.total])} />
-            </>
-          )}
-      </div>
-      </>
+        <>
+          <h3 className={`${SECTION_TITLE} mt-6`}>Reports</h3>
+          <div className="mt-3 grid gap-3 rounded-[20px] bg-[var(--color-sand)] p-4 sm:grid-cols-2">
+            <label className="flex flex-col gap-1.5 text-[0.78rem] font-bold text-[var(--color-ink)]">
+              From <input type="date" value={reportRange.from} onChange={(e) => setReportRange((r) => ({ ...r, from: e.target.value }))} className={`${FORM_INPUT} bg-white`} />
+            </label>
+            <label className="flex flex-col gap-1.5 text-[0.78rem] font-bold text-[var(--color-ink)]">
+              To <input type="date" value={reportRange.to} onChange={(e) => setReportRange((r) => ({ ...r, to: e.target.value }))} className={`${FORM_INPUT} bg-white`} />
+            </label>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" className={`${BTN_SECONDARY} px-4 py-2 text-xs`} onClick={loadApptReport}>Appointments report</button>
+            <button type="button" className={`${BTN_SECONDARY} px-4 py-2 text-xs`} onClick={loadBillingReport}>Billing report</button>
+          </div>
+          <div className="mt-4">
+            {report === null ? <p className="text-[0.85rem] font-medium text-[var(--color-ink-soft)]">Not shown yet.</p>
+              : report.type === 'appointments' ? (
+                <>
+                  <h4 className="mt-2 font-display text-[1rem] font-bold text-[var(--color-ink)]">By status</h4>
+                  <ReportTable headers={['Status', 'Count']} rows={report.data.by_status.map((r) => [r.status, r.count])} />
+                  <h4 className="mt-5 font-display text-[1rem] font-bold text-[var(--color-ink)]">Per doctor</h4>
+                  <ReportTable headers={['Doctor', 'Status', 'Count']} rows={report.data.per_doctor.map((r) => [r.doctor_name, r.status, r.count])} />
+                </>
+              ) : (
+                <>
+                  <h4 className="mt-2 font-display text-[1rem] font-bold text-[var(--color-ink)]">Overall: {report.data.overall.bills} bills, total {report.data.overall.total}</h4>
+                  <ReportTable headers={['Payment status', 'Bills', 'Total']} rows={report.data.by_payment_status.map((r) => [r.payment_status || '-', r.bills, r.total])} />
+                </>
+              )}
+          </div>
+        </>
       )}
       <ConfirmDialog
         open={Boolean(confirm)}
@@ -462,10 +524,22 @@ export function OwnerPanel() {
 
 function ReportTable({ headers, rows }) {
   return (
-    <div className="table-scroll">
-      <table className="report-table">
-        <thead><tr>{headers.map((h) => <th key={h}>{h}</th>)}</tr></thead>
-        <tbody>{rows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>)}</tbody>
+    <div className="mt-2 overflow-x-auto rounded-[18px] bg-[var(--color-sand)] p-2">
+      <table className="w-full border-collapse text-[0.85rem]">
+        <thead>
+          <tr>
+            {headers.map((h) => <th key={h} className="px-3 py-2 text-left font-display text-[0.7rem] font-bold uppercase tracking-[0.08em] text-[var(--color-ink-soft)]">{h}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i} className="border-t border-[var(--color-line)]">
+              {r.map((c, j) => (
+                <td key={j} className="px-3 py-2 text-left text-[var(--color-ink)]">{c}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
       </table>
     </div>
   );
