@@ -15,14 +15,17 @@ export const ROLE_META = {
 
 const AuthContext = createContext(null);
 
+const TOKEN_KEY = 'clinic_access_token';
+
 function loadSession() {
   try {
+    const token = localStorage.getItem(TOKEN_KEY);
     return {
-      token: sessionStorage.getItem('token'),
-      role: normalizeRole(sessionStorage.getItem('role')),
-      email: sessionStorage.getItem('email'),
-      status: sessionStorage.getItem('status'),
-      clinic_id: sessionStorage.getItem('clinic_id'),
+      token: token || null,
+      role: normalizeRole(localStorage.getItem('clinic_role') || null),
+      email: localStorage.getItem('clinic_email') || null,
+      status: localStorage.getItem('clinic_status') || null,
+      clinic_id: localStorage.getItem('clinic_clinic_id') || null,
     };
   } catch (_) {
     return { token: null, role: null, email: null, status: null, clinic_id: null };
@@ -30,13 +33,14 @@ function loadSession() {
 }
 
 function saveSession(data) {
-  sessionStorage.setItem('token', data.token);
-  sessionStorage.setItem('role', data.user.role);
-  sessionStorage.setItem('email', data.user.email);
-  if (data.user.status) sessionStorage.setItem('status', data.user.status);
-  else sessionStorage.removeItem('status');
-  if (data.user.clinic_id) sessionStorage.setItem('clinic_id', String(data.user.clinic_id));
-  else sessionStorage.removeItem('clinic_id');
+  if (data.token) localStorage.setItem(TOKEN_KEY, data.token);
+  else localStorage.removeItem(TOKEN_KEY);
+  localStorage.setItem('clinic_role', data.user.role);
+  localStorage.setItem('clinic_email', data.user.email);
+  if (data.user.status) localStorage.setItem('clinic_status', data.user.status);
+  else localStorage.removeItem('clinic_status');
+  if (data.user.clinic_id) localStorage.setItem('clinic_clinic_id', String(data.user.clinic_id));
+  else localStorage.removeItem('clinic_clinic_id');
   return {
     token: data.token,
     role: normalizeRole(data.user.role),
@@ -47,11 +51,11 @@ function saveSession(data) {
 }
 
 function clearSession() {
-  sessionStorage.removeItem('token');
-  sessionStorage.removeItem('role');
-  sessionStorage.removeItem('email');
-  sessionStorage.removeItem('status');
-  sessionStorage.removeItem('clinic_id');
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem('clinic_role');
+  localStorage.removeItem('clinic_email');
+  localStorage.removeItem('clinic_status');
+  localStorage.removeItem('clinic_clinic_id');
 }
 
 export function AuthProvider({ children }) {
@@ -123,7 +127,12 @@ export function AuthProvider({ children }) {
     return { ok: false, error: await readError(res, 'Accepting the invite failed.') };
   }, []);
 
-  const signout = useCallback(() => {
+  const signout = useCallback(async () => {
+    try {
+      await api.signout();
+    } catch (_) {
+      // Ignore network errors on signout; clear local state regardless.
+    }
     clearSession();
     setSession({ token: null, role: null, email: null, status: null, clinic_id: null });
   }, []);
