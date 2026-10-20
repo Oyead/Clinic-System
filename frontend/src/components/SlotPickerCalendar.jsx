@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, readError } from '../api/client.js';
 import { toDayKey, startOfMonth, monthLabel, buildMonthCells } from './calendarUtils.js';
+import { BTN_GHOST } from './ui.js';
 
 const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
@@ -98,36 +99,41 @@ export function SlotPickerCalendar({ token, clinicId, doctorId, selectedSlotId, 
   const selectedList = selectedKey ? byDay.get(selectedKey) || [] : [];
 
   return (
-    <div className="mini-cal-wrap">
-      <div className="mini-cal-toolbar">
-        <button type="button" className="cal-nav-btn mini" onClick={() => go(-1)} aria-label="Previous month">‹</button>
-        <strong className="mini-cal-month">{monthLabel(cursor)}</strong>
-        <button type="button" className="cal-nav-btn mini" onClick={() => go(1)} aria-label="Next month">›</button>
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" className={`${BTN_GHOST} h-8 w-8 p-0 text-lg leading-none`} onClick={() => go(-1)} aria-label="Previous month">
+          ‹
+        </button>
+        <strong className="min-w-[132px] text-center font-display text-[0.98rem] font-bold tracking-[-0.02em] text-[var(--color-ink)]">{monthLabel(cursor)}</strong>
+        <button type="button" className={`${BTN_GHOST} h-8 w-8 p-0 text-lg leading-none`} onClick={() => go(1)} aria-label="Next month">
+          ›
+        </button>
         <button
           type="button"
-          className="cal-today mini"
+          className={`${BTN_GHOST} ml-auto px-3.5 py-1.5 text-[0.72rem]`}
           onClick={() => { setSelectedKey(null); setCursor(startOfMonth(new Date())); }}
         >
           Today
         </button>
-        {loading && <span className="muted">Loading…</span>}
+        {loading && <span className="text-[0.72rem] font-medium text-[var(--color-ink-soft)]">Loading…</span>}
       </div>
 
       {loadError && (
-        <p className="message error" role="alert">
-          {loadError}{' '}
-          <button type="button" className="cal-today mini" onClick={() => setRetryCount((n) => n + 1)}>
+        <div className="flex flex-wrap items-center justify-center gap-2 rounded-[16px] bg-[rgba(248,161,136,0.16)] px-3 py-2 text-center text-[0.82rem] font-medium text-[#a8442d]" role="alert">
+          {loadError}
+          <button type="button" className={`${BTN_GHOST} px-3 py-1 text-[0.72rem]`} onClick={() => setRetryCount((n) => n + 1)}>
             Retry
           </button>
-        </p>
+        </div>
       )}
 
-      <div className="mini-cal-grid" role="grid" aria-label={`Open slots for ${monthLabel(cursor)}`}>
+      <div className="grid grid-cols-7 gap-1" role="grid" aria-label={`Open slots for ${monthLabel(cursor)}`}>
         {WEEKDAYS.map((w, i) => (
-          <div key={`${w}-${i}`} className="mini-cal-weekday">{w}</div>
+          <div key={`${w}-${i}`} className="py-0.5 text-center font-display text-[0.6rem] font-bold uppercase tracking-[0.08em] text-[var(--color-ink-soft)]">{w}</div>
         ))}
         {cells.map((cell) => {
           const hasOpen = (byDay.get(cell.key) || []).length > 0;
+          const selected = cell.key === selectedKey;
           return (
             <button
               key={cell.key}
@@ -135,43 +141,43 @@ export function SlotPickerCalendar({ token, clinicId, doctorId, selectedSlotId, 
               role="gridcell"
               onClick={() => setSelectedKey(cell.key)}
               className={[
-                'mini-cal-day',
-                cell.inMonth ? '' : 'out',
-                cell.key === todayKey ? 'today' : '',
-                hasOpen ? 'has-appts' : '',
-                cell.key === selectedKey ? 'selected' : '',
+                'relative flex h-9 cursor-pointer items-center justify-center rounded-full text-[0.8rem] font-bold text-[var(--color-ink)] transition-colors',
+                !cell.inMonth ? 'opacity-30' : 'hover:bg-white',
+                cell.key === todayKey ? 'bg-[var(--color-ink)] text-white' : '',
+                hasOpen && cell.key !== todayKey ? 'bg-white shadow-[var(--shadow-sm)]' : '',
+                selected ? 'outline-2 outline-offset-1 outline-[var(--color-ink)]' : '',
               ].join(' ').trim()}
               title={hasOpen ? 'Show open times on this day' : 'No open slots on this day'}
             >
               {cell.date.getDate()}
-              {hasOpen && <i className="mini-cal-dot" />}
+              {hasOpen && <span className={`pointer-events-none absolute bottom-[4px] left-1/2 h-1 w-1 -translate-x-1/2 rounded-full ${cell.key === todayKey ? 'bg-[var(--color-mustard)]' : 'bg-[var(--color-ink)]'}`} />}
             </button>
           );
         })}
       </div>
 
       {!loading && monthSlots.length === 0 && !loadError && (
-        <p className="muted">No open slots this month. Try another month or doctor.</p>
+        <p className="text-[0.85rem] font-medium text-[var(--color-ink-soft)]">No open slots this month. Try another month or doctor.</p>
       )}
 
       {selectedKey && (
-        <div className="mini-cal-details">
-          <strong className="mini-cal-details-title">
+        <div className="mt-1 flex flex-col gap-2 rounded-[18px] bg-white p-3 shadow-[var(--shadow-sm)]">
+          <strong className="px-1 pt-1 font-display text-[0.92rem] font-bold tracking-[-0.02em] text-[var(--color-ink)]">
             {new Date(`${selectedKey}T12:00:00`).toLocaleDateString(undefined, {
               weekday: 'long', month: 'long', day: 'numeric',
             })}
             {' '}· 45 min each
           </strong>
           {selectedList.length === 0
-            ? <p className="muted">No open slots on this day.</p>
+            ? <p className="px-1 pb-1 text-[0.82rem] font-medium text-[var(--color-ink-soft)]">No open slots on this day.</p>
             : (
-              <div className="slot-pick-grid">
+              <div className="flex flex-wrap gap-1.5 px-1 pb-1">
                 {selectedList.map((s) => (
                   <button
                     key={s.id}
                     type="button"
                     onClick={() => onSelect(s)}
-                    className={`slot${selectedSlotId === s.id ? ' selected' : ''}`}
+                    className={`cursor-pointer rounded-full px-3.5 py-1.5 text-[0.8rem] font-bold transition-colors ${selectedSlotId === s.id ? 'bg-[var(--color-ink)] text-white shadow-[var(--shadow-sm)]' : 'bg-[var(--color-sand)] text-[var(--color-ink)] hover:bg-[var(--color-sand-deep)]'}`}
                     aria-pressed={selectedSlotId === s.id}
                   >
                     {slotTime(s.starts_at)}
