@@ -44,29 +44,29 @@ export function TimeSlotPicker({ value, onChange }) {
   const handAngle = selectedIndex === -1 ? null : selectedIndex * 30;
 
   return (
-    <div className="clockpick">
-      <div className="clockpick-top">
-        <div className="clockpick-readout" aria-live="polite">
+    <div className="flex max-w-[320px] flex-col gap-3 rounded-[20px] bg-white p-4 shadow-[var(--shadow-sm)]">
+      <div className="flex w-full items-center justify-between gap-2">
+        <div className="flex items-baseline gap-1">
           <button
             type="button"
             onClick={() => setMode('hour')}
-            className={`clockpick-segment${mode === 'hour' ? ' active' : ''}`}
+            className={`cursor-pointer rounded-full px-2 py-1 font-display text-[1.05rem] font-bold transition-colors ${mode === 'hour' ? 'bg-[var(--color-sand)] text-[var(--color-ink)]' : 'text-[var(--color-ink-soft)]'}`}
             aria-label="Edit hour"
           >
             {hour12 === null ? '--' : pad(hour12)}
           </button>
-          <span aria-hidden="true">:</span>
+          <span aria-hidden="true" className="text-[var(--color-ink-soft)]">:</span>
           <button
             type="button"
             onClick={() => setMode('minute')}
-            className={`clockpick-segment${mode === 'minute' ? ' active' : ''}`}
+            className={`cursor-pointer rounded-full px-2 py-1 font-display text-[1.05rem] font-bold transition-colors ${mode === 'minute' ? 'bg-[var(--color-sand)] text-[var(--color-ink)]' : 'text-[var(--color-ink-soft)]'}`}
             aria-label="Edit minutes"
           >
             {parsed.m === null ? '--' : pad(parsed.m)}
           </button>
-          <span className="clockpick-ampm-label">{ampm}</span>
+          <span className="text-[0.8rem] font-bold text-[var(--color-ink-soft)]">{ampm}</span>
         </div>
-        <div className="clockpick-ampm" role="radiogroup" aria-label="AM or PM">
+        <div className="flex gap-0.5 rounded-full bg-[var(--color-sand)] p-0.5" role="radiogroup" aria-label="AM or PM">
           {['AM', 'PM'].map((a) => (
             <button
               key={a}
@@ -74,7 +74,7 @@ export function TimeSlotPicker({ value, onChange }) {
               role="radio"
               aria-checked={ampm === a}
               onClick={() => pickAmpm(a)}
-              className={`clockpick-ampm-btn${ampm === a ? ' selected' : ''}`}
+              className={`cursor-pointer rounded-full px-3 py-1 text-[0.72rem] font-display font-bold transition-colors ${ampm === a ? 'bg-[var(--color-ink)] text-white' : 'text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]'}`}
             >
               {a}
             </button>
@@ -82,9 +82,13 @@ export function TimeSlotPicker({ value, onChange }) {
         </div>
       </div>
 
-      <div className="clockpick-face" role="radiogroup" aria-label={mode === 'hour' ? 'Pick an hour' : 'Pick minutes'}>
+      <div className="relative flex h-58 w-58 items-center justify-center rounded-full bg-[var(--color-sand)]" role="radiogroup" aria-label={mode === 'hour' ? 'Pick an hour' : 'Pick minutes'}>
         {handAngle !== null && (
-          <div className="clockpick-hand" style={{ transform: `rotate(${handAngle}deg)` }} aria-hidden="true" />
+          <div
+            className="pointer-events-none absolute left-1/2 top-1/2 h-[88px] w-px origin-bottom -translate-x-1/2 -translate-y-full rounded-full bg-[var(--color-ink)] opacity-30 transition-transform"
+            style={{ transform: `rotate(${handAngle}deg)` }}
+            aria-hidden="true"
+          />
         )}
         {marks.map((mark, i) => (
           <button
@@ -94,15 +98,16 @@ export function TimeSlotPicker({ value, onChange }) {
             aria-checked={mark === selectedMark}
             aria-label={mode === 'hour' ? `Hour ${mark}` : `${pad(mark)} minutes`}
             onClick={() => (mode === 'hour' ? pickHour(mark) : pickMinute(mark))}
-            className={`clockpick-num${mark === selectedMark ? ' selected' : ''}`}
-            style={{ transform: `rotate(${i * 30}deg) translateY(-88px) rotate(${-i * 30}deg)` }}
+            className={`absolute left-1/2 top-1/2 flex h-8 w-8 cursor-pointer -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-[0.9rem] font-bold transition-colors ${mark === selectedMark ? 'bg-[var(--color-ink)] text-white shadow-[var(--shadow-sm)]' : 'text-[var(--color-ink)] hover:bg-white'}`}
+            style={{
+              transform: `rotate(${i * 30}deg) translateY(-88px) rotate(${-i * 30}deg)`,
+            }}
           >
             {mode === 'hour' ? mark : pad(mark)}
           </button>
         ))}
-        <div className="clockpick-center" aria-hidden="true" />
+        <div className="pointer-events-none h-2.5 w-2.5 rounded-full bg-[var(--color-mustard)]" aria-hidden="true" />
       </div>
-      <p className="hint">Tap the hour, then the minutes. Tap the time above to adjust.</p>
     </div>
   );
 }
