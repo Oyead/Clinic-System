@@ -1,19 +1,29 @@
-const jwt = require('jsonwebtoken');
 const adminModel = require('../models/adminModel');
 const ownerModel = require('../models/ownerModel');
 const db = require('../config/db');
 const { hashPassword, verifyPassword } = require('../utils/password');
 const { hashInviteToken } = require('../utils/invites');
+const {
+  signAccessToken,
+  signRefreshToken,
+  verifyAccessToken,
+  verifyRefreshToken,
+  REFRESH_EXPIRES_IN_MS,
+} = require('../utils/tokens');
+const userSessionModel = require('../models/userSessionModel');
+const { LOGINABLE_STATUSES } = require('../utils/roles');
+
+const parseCookies = (req) => {
+  const header = req.headers.cookie || '';
+  return header.split(';').reduce((acc, pair) => {
+    const [key, ...valParts] = pair.split('=');
+    if (key) acc[key.trim()] = valParts.join('=').trim();
+    return acc;
+  }, {});
+};
 
 const normalizeEmail = (email) =>
   typeof email === 'string' ? email.trim().toLowerCase() : '';
-
-const signToken = (user) =>
-  jwt.sign(
-    { id: user.id, role: user.role },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
-  );
 
 const publicUser = (user) => ({
   id: user.id,
@@ -22,6 +32,32 @@ const publicUser = (user) => ({
   clinic_id: user.clinic_id || null,
   status: user.status,
 });
+
+const cookieOptions = () => ({
+  httpOnly: true,
+  sameSite: process.env.COOKIE_SAMESITE || 'Lax',
+  path: '/',
+  secure: process.env.NODE_ENV === 'production',
+  maxAge: REFRESH_EXPIRES_IN_MS,
+});
+
+// Issue a full access + refresh token pair for a user.
+const issueTokens = async (res, user) => {
+  const accessToken = signAccessToken(user);
+  const refreshToken = signRefreshToken(user);
+  await userSessionModel.createSession({
+    user_id: user.id,
+    token: refreshToken,
+    expires_in_ms: REFRESH_EXPIRES_IN_MS,
+  });
+  res.cookie('refresh_token', refreshToken, cookieOptions());
+  return { accessToken, refreshToken };
+};
+
+// Clear the refresh token cookie.
+const clearRefreshCookie = (res) => {
+  res.clearCookie('refresh_token', { path: '/', sameSite: process.env.COOKIE_SAMESITE || 'Lax', secure: process.env.NODE_ENV === 'production' });
+};
 
 // 1. Patients: public signup, no approval. Role hardcoded server-side.
 const signup = async (req, res) => {
@@ -59,9 +95,10 @@ const signup = async (req, res) => {
         return user;
       });
 
+      const { accessToken } = await issueTokens(res, created);
       return res.status(201).json({
         message: 'Account created.',
-        token: signToken(created),
+        token: accessToken,
         user: publicUser(created),
       });
     } catch (error) {
@@ -89,7 +126,7 @@ const signupClinic = async (req, res) => {
       return res.status(400).json({ error: 'password must be at least 8 characters.' });
     }
     if (!clinic || !clinic.name || !clinic.phone_number || !clinic.address) {
-      return res.status(400).json({
+      return res.status(409).json({
         error: 'clinic name, phone_number, and address are required.',
       });
     }
@@ -116,7 +153,7 @@ const signupClinic = async (req, res) => {
           },
           client
         );
-        await ownerModel.assignOwner(user.id, row.id, client);
+        await ownerModel_.assignOwner(user.id, row.id, client);
         await client.query(`UPDATE users SET clinic_id = $1 WHERE id = $2;`, [row.id, user.id]);
         user.clinic_id = row.id;
         await adminModel.createAuditLog({
@@ -128,18 +165,13 @@ const signupClinic = async (req, res) => {
           performed_by: null,
           clinic_id: row.id,
         }, client);
-        if (name) {
-          // Owner display name lives on the clinic record indirectly; keep a
-          // no-op guard so future profile tables can pick it up.
-        }
         return { user, clinic: row };
       });
 
-      // Owner can log in while pending but cannot invite staff or operate
-      // bookings until an admin approves the clinic.
+      const { accessToken } = await issueTokens(res, created.user);
       return res.status(201).json({
         message: 'Clinic submitted for verification. You can sign in, but staff invites unlock after approval.',
-        token: signToken(created.user),
+        token: accessToken,
         user: publicUser(created.user),
         clinic: created.clinic,
       });
@@ -180,7 +212,9 @@ const login = async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    const payload = { token: signToken(user), user: publicUser(user) };
+    const { accessToken } = await issueTokens(res, user);
+
+    const payload = { token: accessToken, user: publicUser(user) };
     if (user.status === 'pending_verification') {
       payload.pending_verification = true;
       payload.message = 'Account pending verification. Staff invites unlock after approval.';
@@ -229,9 +263,11 @@ const acceptInvite = async (req, res) => {
       return row;
     });
 
+    const { accessToken } = await issueTokens(res, { id: user.id, role: invite.role });
+
     res.status(200).json({
       message: 'Invite accepted. You are now signed in.',
-      token: signToken({ id: user.id, role: invite.role }),
+      token: accessToken,
       user: publicUser({ ...user, role: invite.role }),
     });
   } catch (error) {
@@ -239,4 +275,77 @@ const acceptInvite = async (req, res) => {
   }
 };
 
-module.exports = { signup, signupClinic, login, acceptInvite };
+// POST /auth/refresh - rotate access token using the httpOnly refresh cookie.
+const refresh = async (req, res) => {
+  try {
+    const refreshToken = parseCookies(req).refresh_token;
+    if (!refreshToken) {
+      return res.status(401).json({ error: 'No refresh token. Please sign in.' });
+    }
+
+    let payload;
+    try {
+      payload = verifyRefreshToken(refreshToken);
+    } catch (error) {
+      clearRefreshCookie(res);
+      return res.status(401).json({ error: 'Refresh token invalid or expired. Please sign in.' });
+    }
+    if (payload.type !== 'refresh') {
+      clearRefreshCookie(res);
+      return res.status(401).json({ error: 'Invalid token type.' });
+    }
+
+    const token_hash = userSessionModel.hashToken(refreshToken);
+    const session = await userSessionModel.getSessionByHash(token_hash);
+    if (!session || session.revoked_at) {
+      clearRefreshCookie(res);
+      return res.status(401).json({ error: 'Session revoked. Please sign in.' });
+    }
+    if (new Date(session.expires_at).getTime() < Date.now()) {
+      await userSessionModel.revokeSession(token_hash);
+      clearRefreshCookie(res);
+      return res.status(401).json({ error: 'Session expired. Please sign in.' });
+    }
+
+    const user = await adminModel.getUserById(session.user_id);
+    if (!user || !user.is_active || !LOGINABLE_STATUSES.includes(user.status)) {
+      await userSessionModel.revokeSession(token_hash);
+      clearRefreshCookie(res);
+      const message = user ? (() => {
+        if (user.status === 'invited') return 'Invite not accepted yet.';
+        if (user.status === 'suspended') return 'Account suspended.';
+        if (user.status === 'offboarded') return 'Account offboarded.';
+        return 'Invalid session.';
+      })() : 'Invalid session.';
+      return res.status(403).json({ error: message });
+    }
+
+    // Rotate: revoke old session, issue a new one.
+    await userSessionModel.revokeSession(token_hash);
+    const { accessToken } = await issueTokens(res, user);
+
+    return res.status(200).json({
+      token: accessToken,
+      user: publicUser(user),
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// POST /auth/signout - revoke the current refresh session and clear the cookie.
+const signout = async (req, res) => {
+  try {
+    const refreshToken = parseCookies(req).refresh_token;
+    if (refreshToken) {
+      await userSessionModel.revokeSession(userSessionModel.hashToken(refreshToken));
+    }
+    clearRefreshCookie(res);
+    return res.status(200).json({ message: 'Signed out.' });
+  } catch (error) {
+    clearRefreshCookie(res);
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+module.exports = { signup, signupClinic, login, acceptInvite, refresh, signout };
