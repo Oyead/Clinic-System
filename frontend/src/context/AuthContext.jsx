@@ -16,6 +16,7 @@ export const ROLE_META = {
 const AuthContext = createContext(null);
 
 const TOKEN_KEY = 'clinic_access_token';
+const NAME_KEY = 'clinic_name';
 
 function loadSession() {
   try {
@@ -24,11 +25,12 @@ function loadSession() {
       token: token || null,
       role: normalizeRole(localStorage.getItem('clinic_role') || null),
       email: localStorage.getItem('clinic_email') || null,
+      name: localStorage.getItem(NAME_KEY) || null,
       status: localStorage.getItem('clinic_status') || null,
       clinic_id: localStorage.getItem('clinic_clinic_id') || null,
     };
   } catch (_) {
-    return { token: null, role: null, email: null, status: null, clinic_id: null };
+    return { token: null, role: null, email: null, name: null, status: null, clinic_id: null };
   }
 }
 
@@ -37,6 +39,8 @@ function saveSession(data) {
   else localStorage.removeItem(TOKEN_KEY);
   localStorage.setItem('clinic_role', data.user.role);
   localStorage.setItem('clinic_email', data.user.email);
+  if (data.user.name) localStorage.setItem(NAME_KEY, data.user.name);
+  else localStorage.removeItem(NAME_KEY);
   if (data.user.status) localStorage.setItem('clinic_status', data.user.status);
   else localStorage.removeItem('clinic_status');
   if (data.user.clinic_id) localStorage.setItem('clinic_clinic_id', String(data.user.clinic_id));
@@ -45,6 +49,7 @@ function saveSession(data) {
     token: data.token,
     role: normalizeRole(data.user.role),
     email: data.user.email,
+    name: data.user.name || null,
     status: data.user.status || null,
     clinic_id: data.user.clinic_id || null,
   };
@@ -54,6 +59,7 @@ function clearSession() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem('clinic_role');
   localStorage.removeItem('clinic_email');
+  localStorage.removeItem(NAME_KEY);
   localStorage.removeItem('clinic_status');
   localStorage.removeItem('clinic_clinic_id');
 }
@@ -70,7 +76,7 @@ export function AuthProvider({ children }) {
         return { ok: true, user: data.user, pending: data.pending_verification || data.user.status === 'pending_verification' };
       }
       clearSession();
-      setSession({ token: null, role: null, email: null, status: null, clinic_id: null });
+      setSession({ token: null, role: null, email: null, name: null, status: null, clinic_id: null });
       if (res.status === 401) {
         return { ok: false, invalid: true, error: 'Invalid email or password.' };
       }
@@ -134,13 +140,13 @@ export function AuthProvider({ children }) {
       // Ignore network errors on signout; clear local state regardless.
     }
     clearSession();
-    setSession({ token: null, role: null, email: null, status: null, clinic_id: null });
+    setSession({ token: null, role: null, email: null, name: null, status: null, clinic_id: null });
   }, []);
 
   const value = useMemo(
     () => ({
       ...session,
-      user: session.email ? { email: session.email, role: session.role, status: session.status, clinic_id: session.clinic_id } : null,
+      user: session.email ? { email: session.email, name: session.name, role: session.role, status: session.status, clinic_id: session.clinic_id } : null,
       pendingVerification: session.status === 'pending_verification',
       signin,
       signup,

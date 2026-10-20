@@ -28,6 +28,7 @@ const normalizeEmail = (email) =>
 const publicUser = (user) => ({
   id: user.id,
   email: user.email,
+  name: user.name || null,
   role: user.role,
   clinic_id: user.clinic_id || null,
   status: user.status,
@@ -99,7 +100,7 @@ const signup = async (req, res) => {
       return res.status(201).json({
         message: 'Account created.',
         token: accessToken,
-        user: publicUser(created),
+        user: publicUser({ ...created, name }),
       });
     } catch (error) {
       if (error.code === '23505') {
@@ -172,7 +173,7 @@ const signupClinic = async (req, res) => {
       return res.status(201).json({
         message: 'Clinic submitted for verification. You can sign in, but staff invites unlock after approval.',
         token: accessToken,
-        user: publicUser(created.user),
+        user: publicUser({ ...created.user, name: created.clinic.name }),
         clinic: created.clinic,
       });
     } catch (error) {
@@ -263,12 +264,14 @@ const acceptInvite = async (req, res) => {
       return row;
     });
 
-    const { accessToken } = await issueTokens(res, { id: user.id, role: invite.role });
+    const profile = await adminModel.getUserById(user.id);
+    const signedInUser = profile ? { ...profile, role: invite.role } : { ...user, role: invite.role };
+    const { accessToken } = await issueTokens(res, signedInUser);
 
     res.status(200).json({
       message: 'Invite accepted. You are now signed in.',
       token: accessToken,
-      user: publicUser({ ...user, role: invite.role }),
+      user: publicUser(signedInUser),
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

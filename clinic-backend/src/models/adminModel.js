@@ -133,11 +133,20 @@ const getReceptionistByUserId = async (userId, client = db) => {
   return result.rows[0];
 };
 
+const displayNameSelect = `
+  COALESCE(
+    (SELECT p.name FROM patients p WHERE p.user_id = u.id ORDER BY p.id LIMIT 1),
+    (SELECT d.name FROM doctors d WHERE d.user_id = u.id ORDER BY d.id LIMIT 1),
+    (SELECT r.name FROM receptionists r WHERE r.user_id = u.id ORDER BY r.id LIMIT 1),
+    (SELECT c.name FROM clinics c WHERE c.owner_id = u.id ORDER BY c.id LIMIT 1)
+  ) AS name`;
+
 const getUserById = async (id) => {
   const query = `
-    SELECT id, email, original_email, role, clinic_id, status, invited_by, offboarded_at, is_active
-    FROM users
-    WHERE id = $1;
+    SELECT u.id, u.email, u.original_email, u.role, u.clinic_id, u.status, u.invited_by,
+           u.offboarded_at, u.is_active, ${displayNameSelect}
+    FROM users u
+    WHERE u.id = $1;
   `;
   const result = await db.query(query, [id]);
   return result.rows[0];
@@ -145,9 +154,10 @@ const getUserById = async (id) => {
 
 const getUserByEmail = async (email) => {
   const query = `
-    SELECT id, email, original_email, password_hash, role, clinic_id, status, invited_by, offboarded_at, is_active
-    FROM users
-    WHERE LOWER(email) = LOWER($1);
+    SELECT u.id, u.email, u.original_email, u.password_hash, u.role, u.clinic_id, u.status,
+           u.invited_by, u.offboarded_at, u.is_active, ${displayNameSelect}
+    FROM users u
+    WHERE LOWER(u.email) = LOWER($1);
   `;
   const result = await db.query(query, [email]);
   return result.rows[0];

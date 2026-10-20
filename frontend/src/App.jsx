@@ -27,7 +27,7 @@ function Backdrop() {
 }
 
 function Shell() {
-  const { token, role, email, status, pendingVerification, signout } = useAuth();
+  const { token, role, email, name, status, pendingVerification, signout } = useAuth();
   const { path, params, navigate } = useHashRoute();
 
   const signedIn = Boolean(token);
@@ -51,6 +51,10 @@ function Shell() {
   }, [path, signedIn, navigate]);
 
   const meta = role ? ROLE_META[role] : null;
+  const fallbackName = email
+    ? email.split('@')[0].replace(/[._-]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+    : '';
+  const displayName = name?.trim() || fallbackName || 'there';
 
   const handleSignout = () => {
     signout();
@@ -71,12 +75,9 @@ function Shell() {
         </a>
         <div className="flex-1" />
         {signedIn ? (
-          <div className="flex max-w-full flex-wrap items-center gap-2.5 rounded-full bg-[var(--color-sand)] py-1.5 pl-4 pr-1.5 text-[0.82rem] font-medium text-[var(--color-ink)]">
-            <span className="min-w-0 [overflow-wrap:anywhere]">{email} · {role}</span>
-            <button type="button" className={`${BTN_INK} px-4 py-1.5 text-xs`} onClick={handleSignout}>
-              Sign out
-            </button>
-          </div>
+          <button type="button" className={`${BTN_INK} px-4 py-2 text-xs`} onClick={handleSignout}>
+            Sign out
+          </button>
         ) : (
           <nav className="flex flex-wrap items-center gap-1.5" aria-label="Primary">
             {NAV_LINKS.map((l) => (
@@ -96,14 +97,11 @@ function Shell() {
         <main className="flex flex-col gap-5">
           {meta && (
             <div className="relative overflow-hidden rounded-[24px] bg-[var(--color-mustard)] p-6 shadow-[var(--shadow)] sm:p-8" role="status">
-              <span className="relative block text-[0.66rem] font-bold uppercase tracking-[0.2em] text-[#6b5109]">Signed in as {email}</span>
-              <span className="relative mt-1 block font-display text-[1.9rem] font-extrabold leading-tight tracking-[-0.03em] text-[var(--color-ink)] sm:text-[2.2rem]">{meta.title}</span>
-              <div className="relative mt-2 flex flex-wrap items-center gap-2 text-[0.88rem] text-[#4a3606]">
-                <span>{meta.sub}</span>
-                <span className="h-1 w-1 rounded-full bg-[#4a3606]/40" />
-                <span>{role}</span>
+              <div className="relative flex flex-wrap items-center gap-2">
+                <span className="text-[0.7rem] font-bold uppercase tracking-[0.2em] text-[#6b5109] [overflow-wrap:anywhere]">Hi, {displayName}</span>
                 {status && <span className={statusPill(status)}>{status.replaceAll('_', ' ')}</span>}
               </div>
+              <p className="relative mt-2 text-[0.88rem] leading-[1.6] text-[#4a3606]">{meta.sub}</p>
             </div>
           )}
           {pendingVerification && (
