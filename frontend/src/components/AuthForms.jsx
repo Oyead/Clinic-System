@@ -2,8 +2,12 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { PasswordInput } from './SecretField.jsx';
 import { ROUTES } from '../router.js';
+import { FORM_INPUT, BTN_PRIMARY } from './ui.js';
 
 const emptyClinic = { email: '', password: '', clinicName: '', phone: '', address: '' };
+
+const LABEL = 'flex flex-col gap-2 text-[0.8rem] font-bold tracking-[0.01em] text-[var(--color-ink)]';
+const ERROR = 'rounded-[16px] bg-[rgba(248,161,136,0.18)] px-4 py-3 text-[0.82rem] font-medium text-[#a8442d]';
 
 const bind = (form, setForm, setErr, key) => ({
   value: form[key],
@@ -14,7 +18,9 @@ function ExistsHint({ error }) {
   return (
     <>
       {error || 'User already exists, please sign in.'}{' '}
-      <a className="form-link" href={`#${ROUTES.SIGNIN}`}>Go to Sign in</a>
+      <a href={`#${ROUTES.SIGNIN}`} className="font-bold underline decoration-2 underline-offset-2">
+        Go to Sign in
+      </a>
     </>
   );
 }
@@ -54,25 +60,25 @@ export function PatientSignupForm({ onSignedIn }) {
   };
 
   return (
-    <form className="card" noValidate onSubmit={handleSubmit}>
-      <label>
+    <form className="flex flex-col gap-4" noValidate onSubmit={handleSubmit}>
+      <label className={LABEL}>
         Email
-        <input type="email" required autoComplete="email" {...bind(form, setForm, setError, 'email')} />
+        <input type="email" required autoComplete="email" className={FORM_INPUT} {...bind(form, setForm, setError, 'email')} />
       </label>
-      <label>
+      <label className={LABEL}>
         Password (min 8 characters)
-            <PasswordInput required minLength={8} autoComplete="new-password" {...bind(form, setForm, setError, 'password')} />
-          </label>
-          <label>
-            Full name (optional, needed for booking appointments)
-        <input type="text" autoComplete="name" {...bind(form, setForm, setError, 'name')} />
+        <PasswordInput required minLength={8} autoComplete="new-password" {...bind(form, setForm, setError, 'password')} />
+      </label>
+      <label className={LABEL}>
+        Full name <span className="font-medium text-[var(--color-ink-soft)]">optional, needed for booking appointments</span>
+        <input type="text" autoComplete="name" className={FORM_INPUT} {...bind(form, setForm, setError, 'name')} />
       </label>
       {error && (
-        <p className="form-error" role="alert">
+        <p className={ERROR} role="alert">
           {exists ? <ExistsHint error={error} /> : error}
         </p>
       )}
-      <button type="submit">Create account</button>
+      <button type="submit" className={`${BTN_PRIMARY} mt-1 px-8 py-3.5 text-sm`}>Create account</button>
     </form>
   );
 }
@@ -116,34 +122,36 @@ export function ClinicSignupForm({ onSignedIn }) {
   };
 
   return (
-    <form className="card" noValidate onSubmit={handleSubmit}>
-      <label>
+    <form className="flex flex-col gap-4" noValidate onSubmit={handleSubmit}>
+      <label className={LABEL}>
         Owner email
-        <input type="email" required autoComplete="email" {...bind(form, setForm, setError, 'email')} />
+        <input type="email" required autoComplete="email" className={FORM_INPUT} {...bind(form, setForm, setError, 'email')} />
       </label>
-      <label>
+      <label className={LABEL}>
         Password (min 8 characters)
-            <PasswordInput required minLength={8} autoComplete="new-password" {...bind(form, setForm, setError, 'password')} />
-          </label>
-          <label>
-            Clinic name
-        <input type="text" required {...bind(form, setForm, setError, 'clinicName')} />
+        <PasswordInput required minLength={8} autoComplete="new-password" {...bind(form, setForm, setError, 'password')} />
       </label>
-      <label>
+      <label className={LABEL}>
+        Clinic name
+        <input type="text" required className={FORM_INPUT} {...bind(form, setForm, setError, 'clinicName')} />
+      </label>
+      <label className={LABEL}>
         Clinic phone
-        <input type="text" required {...bind(form, setForm, setError, 'phone')} />
+        <input type="text" required className={FORM_INPUT} {...bind(form, setForm, setError, 'phone')} />
       </label>
-      <label>
+      <label className={LABEL}>
         Clinic address
-        <input type="text" required {...bind(form, setForm, setError, 'address')} />
+        <input type="text" required className={FORM_INPUT} {...bind(form, setForm, setError, 'address')} />
       </label>
       {error && (
-        <p className="form-error" role="alert">
+        <p className={ERROR} role="alert">
           {exists ? <ExistsHint error={error} /> : error}
         </p>
       )}
-      <p className="hint">Submits your clinic for platform verification. You can sign in right away; staff invites unlock after approval.</p>
-      <button type="submit">Register clinic</button>
+      <p className="rounded-[16px] bg-[var(--color-sand)] px-4 py-3 text-[0.76rem] leading-[1.6] text-[var(--color-ink-soft)]">
+        Submits your clinic for platform verification. You can sign in right away; staff invites unlock after approval.
+      </p>
+      <button type="submit" className={`${BTN_PRIMARY} mt-1 px-8 py-3.5 text-sm`}>Register clinic</button>
     </form>
   );
 }
@@ -168,7 +176,7 @@ export function AcceptInviteForm({ onSignedIn, initialToken = '' }) {
       const result = await acceptInvite({ token, password });
       if (result.ok) {
         setForm({ token: '', password: '' });
-        setDone('Invite accepted — you are signed in.');
+        setDone('Invite accepted - you are signed in.');
         onSignedIn?.(result.user);
       } else {
         setError(result.error || 'Accepting the invite failed.');
@@ -179,18 +187,18 @@ export function AcceptInviteForm({ onSignedIn, initialToken = '' }) {
   };
 
   return (
-    <form className="card" noValidate onSubmit={handleSubmit}>
-      <label>
+    <form className="flex flex-col gap-4" noValidate onSubmit={handleSubmit}>
+      <label className={LABEL}>
         Invite token
-        <input type="text" required placeholder="Paste the token your clinic owner shared" {...bind(form, setForm, setError, 'token')} />
+        <input type="text" required placeholder="Paste the token your clinic owner shared" className={FORM_INPUT} {...bind(form, setForm, setError, 'token')} />
       </label>
-      <label>
+      <label className={LABEL}>
         Choose a password (min 8 characters)
-            <PasswordInput required minLength={8} autoComplete="new-password" {...bind(form, setForm, setError, 'password')} />
-          </label>
-          {error && <p className="form-error" role="alert">{error}</p>}
-          {done && <p className="form-ok" role="status">{done}</p>}
-      <button type="submit">Accept invite</button>
+        <PasswordInput required minLength={8} autoComplete="new-password" {...bind(form, setForm, setError, 'password')} />
+      </label>
+      {error && <p className={ERROR} role="alert">{error}</p>}
+      {done && <p className="rounded-[16px] bg-[rgba(127,217,168,0.2)] px-4 py-3 text-[0.82rem] font-medium text-[#2f7d58]" role="status">{done}</p>}
+      <button type="submit" className={`${BTN_PRIMARY} mt-1 px-8 py-3.5 text-sm`}>Accept invite</button>
     </form>
   );
 }
@@ -223,17 +231,17 @@ export function SigninForm({ onSignedIn, initialError = '' }) {
   };
 
   return (
-    <form className="card" noValidate onSubmit={handleSubmit}>
-      <label>
+    <form className="flex flex-col gap-4" noValidate onSubmit={handleSubmit}>
+      <label className={LABEL}>
         Email
-        <input type="email" required autoComplete="email" {...bind(form, setForm, setError, 'email')} />
+        <input type="email" required autoComplete="email" className={FORM_INPUT} {...bind(form, setForm, setError, 'email')} />
       </label>
-      <label>
+      <label className={LABEL}>
         Password
-            <PasswordInput required autoComplete="current-password" {...bind(form, setForm, setError, 'password')} />
+        <PasswordInput required autoComplete="current-password" {...bind(form, setForm, setError, 'password')} />
       </label>
-      {error && <p className="form-error" role="alert">{error}</p>}
-      <button type="submit">Sign in</button>
+      {error && <p className={ERROR} role="alert">{error}</p>}
+      <button type="submit" className={`${BTN_PRIMARY} mt-1 px-8 py-3.5 text-sm`}>Sign in</button>
     </form>
   );
 }
