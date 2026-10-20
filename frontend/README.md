@@ -1,4 +1,4 @@
-# Clinic System — Frontend (React + Vite)
+# Clinic System - Frontend (React + Vite)
 
 React port of the clinic-system UI. Same API contracts as the original
 vanilla frontend (`/api/v1/...`), same role panels (admin, doctor,
