@@ -75,7 +75,7 @@ const resolveScope = async (user, { doctor_id, clinic_id }) => {
 
 const slotEnd = (start) => new Date(start.getTime() + SLOT_MINUTES * 60000);
 
-// POST /api/v1/availability — publish one or more 45-minute slots.
+// POST /api/v1/availability - publish one or more 45-minute slots.
 const createAvailability = async (req, res) => {
   try {
     const { doctor_id, clinic_id, starts_at } = req.body || {};
@@ -160,7 +160,7 @@ const createAvailability = async (req, res) => {
   }
 };
 
-// GET /api/v1/availability — role-scoped slot listing with optional
+// GET /api/v1/availability - role-scoped slot listing with optional
 // ?doctor_id=&clinic_id=&status=&from=&to= filters.
 const listAvailability = async (req, res) => {
   try {
@@ -256,7 +256,7 @@ const listAvailability = async (req, res) => {
   }
 };
 
-// DELETE /api/v1/availability/:id — withdraw an open slot.
+// DELETE /api/v1/availability/:id - withdraw an open slot.
 const removeAvailability = async (req, res) => {
   try {
     const slot = await availabilityModel.getSlotById(req.params.id);
