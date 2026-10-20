@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toDayKey, startOfMonth, startOfDay, monthLabel, formatTime, formatFull, buildMonthCells } from './calendarUtils.js';
+import { SURFACE, MODAL_BACKDROP, BTN_GHOST, BTN_SUCCESS, BTN_DANGER, BTN_INK, statusPill } from './ui.js';
 
 const ACTIVE_STATUSES = ['pending', 'scheduled'];
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -101,45 +102,45 @@ export function ActiveCalendar({ loadRange, reloadKey, onDecide, onCancel }) {
   };
 
   return (
-    <div className="cal-wrap">
-      <div className="cal-toolbar">
-        <div className="cal-nav">
-          <button type="button" className="cal-nav-btn" onClick={() => go(-1)} aria-label="Previous month">
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" className={`${BTN_GHOST} h-9 w-9 p-0 text-lg leading-none`} onClick={() => go(-1)} aria-label="Previous month">
             ‹
           </button>
-          <strong className="cal-month">{monthLabel(cursor)}</strong>
-          <button type="button" className="cal-nav-btn" onClick={() => go(1)} aria-label="Next month">
+          <strong className="min-w-[150px] text-center font-display text-[1.1rem] font-bold tracking-[-0.02em] text-[var(--color-ink)]">{monthLabel(cursor)}</strong>
+          <button type="button" className={`${BTN_GHOST} h-9 w-9 p-0 text-lg leading-none`} onClick={() => go(1)} aria-label="Next month">
             ›
           </button>
-          <button type="button" className="cal-today" onClick={goToday}>
+          <button type="button" className={`${BTN_GHOST} px-4 py-1.5 text-[0.76rem]`} onClick={goToday}>
             Today
           </button>
         </div>
-        <div className="cal-legend" aria-label="Active counts">
+        <div className="flex flex-wrap items-center gap-3 text-[0.76rem] font-medium text-[var(--color-ink-soft)]" aria-label="Active counts">
           {loading
-            ? <span className="cal-count">Loading this month…</span>
+            ? <span>Loading this month…</span>
             : (
               <>
-                <span className="cal-count"><i className="dot dot-active" />{totalActive} active</span>
-                <span className="cal-count"><i className="dot dot-pending" />{pendingCount} pending</span>
-                <span className="cal-count"><i className="dot dot-scheduled" />{scheduledCount} scheduled</span>
+                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[var(--color-ink)]" />{totalActive} active</span>
+                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[var(--color-amber-dark)]" />{pendingCount} pending</span>
+                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[var(--color-mint-dark)]" />{scheduledCount} scheduled</span>
               </>
             )}
         </div>
       </div>
 
       {loadError && (
-        <p className="message error" role="alert">
-          {loadError}{' '}
-          <button type="button" className="cal-today" onClick={() => setRetryCount((n) => n + 1)}>
+        <div className="flex flex-wrap items-center justify-center gap-2 rounded-[18px] bg-[rgba(248,161,136,0.16)] px-4 py-3 text-center text-[0.85rem] font-medium text-[#a8442d]" role="alert">
+          {loadError}
+          <button type="button" className={`${BTN_GHOST} px-3.5 py-1.5 text-[0.76rem]`} onClick={() => setRetryCount((n) => n + 1)}>
             Retry
           </button>
-        </p>
+        </div>
       )}
 
-      <div className="cal-grid" role="grid" aria-label={`Active appointments for ${monthLabel(cursor)}`}>
+      <div className="grid grid-cols-7 gap-1.5 sm:gap-2" role="grid" aria-label={`Active appointments for ${monthLabel(cursor)}`}>
         {WEEKDAYS.map((w) => (
-          <div key={w} className="cal-weekday">{w}</div>
+          <div key={w} className="py-1 text-center font-display text-[0.64rem] font-bold uppercase tracking-[0.12em] text-[var(--color-ink-soft)]">{w}</div>
         ))}
         {cells.map((cell) => {
           const list = byDay.get(cell.key) || [];
@@ -154,28 +155,39 @@ export function ActiveCalendar({ loadRange, reloadKey, onDecide, onCancel }) {
               disabled={!hasActive}
               onClick={() => hasActive && setSelectedKey(cell.key)}
               className={[
-                'cal-day',
-                cell.inMonth ? '' : 'out',
-                isToday ? 'today' : '',
-                hasActive ? 'has-active' : '',
-                isSelected ? 'selected' : '',
+                'flex h-[68px] flex-col items-start gap-1 rounded-[16px] p-2 text-left text-[var(--color-ink)] transition-colors sm:h-[104px] sm:gap-1.5 sm:p-2.5',
+                hasActive ? 'cursor-pointer bg-white shadow-[var(--shadow-sm)] hover:bg-[#fffdf9]' : 'cursor-default bg-white/45',
+                !cell.inMonth ? 'opacity-45' : '',
+                isSelected ? 'outline-2 outline-offset-2 outline-[var(--color-ink)]' : '',
               ].join(' ').trim()}
-              title={hasActive ? `${list.length} active appointment(s) — open details` : 'No active appointments'}
+              title={hasActive ? `${list.length} active appointment(s) - open details` : 'No active appointments'}
             >
-              <span className="cal-day-num">{cell.date.getDate()}</span>
+              <span className={[
+                'flex h-7 min-w-7 items-center justify-center rounded-full px-1 font-display text-[0.82rem] font-bold',
+                isToday ? 'bg-[var(--color-ink)] text-white' : hasActive ? 'bg-[var(--color-sand)] text-[var(--color-ink)]' : 'text-[var(--color-ink-soft)]',
+              ].join(' ').trim()}>
+                {cell.date.getDate()}
+              </span>
               {hasActive && (
                 <>
-                  <span className="cal-badge">{list.length} active</span>
-                  <span className="cal-chips">
-                    {list.slice(0, 3).map((a) => (
-                      <span key={a.id} className={`cal-chip ${a.status}`}>
-                        <b>{formatTime(a.appointment_date)}</b>
-                        {' '}{a.patient_name || `#${a.id}`}
+                  <span className="hidden text-[0.6rem] font-bold uppercase tracking-[0.08em] text-[var(--color-ink-soft)] sm:inline-flex">
+                    {list.length} active
+                  </span>
+                  <span className="hidden w-full flex-col gap-1 sm:flex">
+                    {list.slice(0, 2).map((a) => (
+                      <span key={a.id} className="flex w-full items-center gap-1 overflow-hidden rounded-full bg-[var(--color-sand)] px-2 py-0.5 text-[0.68rem] leading-[1.4] text-[var(--color-ink)]">
+                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${a.status === 'pending' ? 'bg-[var(--color-amber-dark)]' : 'bg-[var(--color-mint-dark)]'}`} />
+                        <span className="truncate"><b>{formatTime(a.appointment_date)}</b> {a.patient_name || `#${a.id}`}</span>
                       </span>
                     ))}
-                    {list.length > 3 && (
-                      <span className="cal-more">+{list.length - 3} more</span>
+                    {list.length > 2 && (
+                      <span className="text-[0.66rem] font-bold text-[var(--color-ink-soft)]">+{list.length - 2} more</span>
                     )}
+                  </span>
+                  <span className="mt-auto flex gap-1 sm:hidden">
+                    {list.slice(0, 3).map((a) => (
+                      <span key={a.id} className={`h-1.5 w-1.5 rounded-full ${a.status === 'pending' ? 'bg-[var(--color-amber-dark)]' : 'bg-[var(--color-mint-dark)]'}`} />
+                    ))}
                   </span>
                 </>
               )}
@@ -185,50 +197,51 @@ export function ActiveCalendar({ loadRange, reloadKey, onDecide, onCancel }) {
       </div>
 
       {!loading && totalActive === 0 && !loadError && (
-        <p className="muted" style={{ marginTop: 4 }}>No active appointments this month.</p>
+        <p className="text-[0.85rem] font-medium text-[var(--color-ink-soft)]">No active appointments this month.</p>
       )}
 
       {selectedKey && (
-        <div className="modal-backdrop" onClick={() => setSelectedKey(null)}>
+        <div className={MODAL_BACKDROP} onClick={() => setSelectedKey(null)}>
           <div
-            className="modal glass cal-modal"
+            className={`${SURFACE} w-full max-w-[640px] p-6 sm:p-8`}
             role="dialog"
             aria-modal="true"
             aria-label={`Appointments on ${selectedKey}`}
             onClick={(e) => e.stopPropagation()}
           >
-            <h2>
-              <span className="eyebrow">Active calendar</span>
+            <span className="text-[0.66rem] font-bold uppercase tracking-[0.18em] text-[var(--color-ink-soft)]">Active calendar</span>
+            <h2 className="mt-1.5 font-display text-[1.6rem] font-extrabold leading-tight tracking-[-0.03em] text-[var(--color-ink)]">
               {new Date(`${selectedKey}T12:00:00`).toLocaleDateString(undefined, {
                 weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
               })}
             </h2>
-            <p className="muted">
-              {selectedList.length} active appointment{selectedList.length === 1 ? '' : 's'} — review, approve, reject or cancel.
+            <p className="mt-1 text-[0.85rem] text-[var(--color-ink-soft)]">
+              {selectedList.length} active appointment{selectedList.length === 1 ? '' : 's'} - review, approve, reject or cancel.
             </p>
-            <div className="cal-details">
+            <div className="mt-4 flex max-h-[46vh] flex-col divide-y divide-[var(--color-line)] overflow-auto rounded-[18px] bg-[var(--color-sand)] px-4 py-1">
               {selectedList.map((a) => (
-                <div className="user-row cal-detail-row" key={a.id}>
-                  <span className="who">
-                    <strong>#{a.id}</strong> {a.patient_name || ''} → {a.doctor_name || ''}
+                <div key={a.id} className="flex flex-wrap items-center gap-2.5 py-4 text-sm">
+                  <span className="min-w-0 flex-1 leading-[1.65] text-[var(--color-ink)]">
+                    <span className="font-bold">#{a.id}</span> {a.patient_name || ''} → {a.doctor_name || ''}
                     <br />
-                    {a.clinic_name || ''} · {formatFull(a.appointment_date)} ·{' '}
-                    <span className={`cal-status ${a.status}`}>{a.status}</span>
-                    {a.reason ? ` · ${a.reason}` : ''}
+                    <span className="text-[0.82rem] text-[var(--color-ink-soft)]">{a.clinic_name || ''} · {formatFull(a.appointment_date)}</span>
+                    {' '}
+                    <span className={statusPill(a.status)}>{a.status.replaceAll('_', ' ')}</span>
+                    {a.reason ? <span className="text-[0.82rem] text-[var(--color-ink-soft)]"> · {a.reason}</span> : ''}
                   </span>
-                  <span className="cal-actions">
+                  <span className="flex flex-wrap gap-2">
                     {a.status === 'pending' && onDecide && (
                       <>
-                        <button type="button" className="approve" onClick={() => onDecide(a.id, 'approve')}>
+                        <button type="button" className={`${BTN_SUCCESS} px-3.5 py-1.5 text-xs`} onClick={() => onDecide(a.id, 'approve')}>
                           Approve
                         </button>
-                        <button type="button" className="reject" onClick={() => onDecide(a.id, 'reject')}>
+                        <button type="button" className={`${BTN_DANGER} px-3.5 py-1.5 text-xs`} onClick={() => onDecide(a.id, 'reject')}>
                           Reject
                         </button>
                       </>
                     )}
                     {(a.status === 'pending' || a.status === 'scheduled') && onCancel && (
-                      <button type="button" onClick={() => onCancel(a.id)}>
+                      <button type="button" className={`${BTN_INK} px-3.5 py-1.5 text-xs`} onClick={() => onCancel(a.id)}>
                         Cancel
                       </button>
                     )}
@@ -236,7 +249,7 @@ export function ActiveCalendar({ loadRange, reloadKey, onDecide, onCancel }) {
                 </div>
               ))}
             </div>
-            <button type="button" className="modal-close" onClick={() => setSelectedKey(null)}>
+            <button type="button" className={`${BTN_INK} mt-5 px-7 py-2.5 text-sm`} onClick={() => setSelectedKey(null)}>
               Close
             </button>
           </div>
