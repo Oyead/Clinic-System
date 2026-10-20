@@ -387,7 +387,7 @@ const bookingOptions = async (req, res) => {
   try {
     const role = normalizeRole(req.user.role);
 
-    // Staff see only their assigned clinic and its doctors — nothing more.
+    // Staff see only their assigned clinic and its doctors - nothing more.
     if (role === 'doctor' || role === 'receptionist') {
       const profile = role === 'doctor'
         ? await appointmentModel.getDoctorByUserId(req.user.id)
