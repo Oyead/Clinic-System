@@ -366,12 +366,12 @@ export function AdminPanel() {
                 <div className="flex flex-col divide-y divide-[var(--color-line)]">
                   {pendingClinics.map((c) => (
                     <div className="flex flex-wrap items-center gap-3 py-3.5 text-sm" key={c.id}>
-                      <span className="min-w-0 flex-1 leading-[1.6] text-[var(--color-ink)]">
+                      <span className="min-w-0 flex-1 leading-[1.6] text-[var(--color-ink)] [overflow-wrap:anywhere]">
                         <span className="font-bold">#{c.id} {c.name}</span><br />
                         <span className="text-[0.8rem] text-[var(--color-ink-soft)]">{c.address} · owner: {c.owner_email || `#${c.owner_id ?? '-'}`}</span>
                       </span>
                       <span className={statusPill('pending_verification')}>pending</span>
-                      <button type="button" className={`${BTN_SUCCESS} px-4 py-1.5 text-xs`} onClick={() => approveClinic(c.id)}>Approve</button>
+                      <button type="button" className={`${BTN_SUCCESS} w-full px-4 py-1.5 text-xs sm:w-auto`} onClick={() => approveClinic(c.id)}>Approve</button>
                     </div>
                   ))}
                 </div>
@@ -523,7 +523,7 @@ export function AdminPanel() {
               : (
                 <div className="flex flex-col divide-y divide-[var(--color-line)]">
                   {patients.map((p) => (
-                    <div className="py-2.5 text-[0.85rem] leading-[1.6] text-[var(--color-ink)]" key={p.id}>
+                    <div className="py-2.5 text-[0.85rem] leading-[1.6] text-[var(--color-ink)] [overflow-wrap:anywhere]" key={p.id}>
                       <span className="font-bold">#{p.id}</span> {p.name || '-'} &lt;{p.email || '-'}&gt; <span className="text-[var(--color-ink-soft)]">user: {p.user_id ?? 'unlinked'}</span>
                     </div>
                   ))}
@@ -621,12 +621,12 @@ function UserRows({ users, onSuspend, onReinstate, onOffboard }) {
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-white bg-[var(--color-sand)] font-display text-[0.8rem] font-bold text-[var(--color-ink)] shadow-[var(--shadow-sm)]">
               {(u.email || '?').slice(0, 1).toUpperCase()}
             </span>
-            <span className="min-w-0 flex-1 leading-[1.6] text-[var(--color-ink)]">
+            <span className="min-w-0 flex-1 leading-[1.6] text-[var(--color-ink)] [overflow-wrap:anywhere]">
               <span className="font-bold">#{u.id}</span> {u.email}<br />
               <span className="text-[0.8rem] text-[var(--color-ink-soft)]">{u.role}</span>{' '}
               <span className={statusPill(state)}>{state}</span>
             </span>
-            <span className="flex flex-wrap gap-2">
+            <span className="flex w-full flex-wrap gap-2 sm:w-auto">
               {u.status === 'active' && (
                 <button type="button" className={`${BTN_DANGER} px-3.5 py-1.5 text-xs`} onClick={() => onSuspend(u.id)}>Suspend</button>
               )}

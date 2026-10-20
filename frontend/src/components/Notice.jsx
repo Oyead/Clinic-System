@@ -97,7 +97,7 @@ export function Notice({ notice, onClose }) {
   const isSuccess = notice.kind === 'success';
 
   return createPortal(
-    <div className="pointer-events-none fixed bottom-4 left-4 z-[100] flex flex-col gap-3 sm:bottom-5 sm:left-5" aria-hidden="false">
+    <div className="pointer-events-none fixed bottom-20 left-4 z-[100] flex flex-col gap-3 sm:bottom-5 sm:left-5" aria-hidden="false">
       <div
         className={`relative flex w-[min(420px,calc(100vw_-_32px))] flex-row items-center gap-3 rounded-[24px] bg-white p-4 pr-11 shadow-[var(--shadow)] transition-all duration-300 ease-out ${leaving ? 'pointer-events-none translate-y-2 scale-95 opacity-0' : ''}`}
         role={isSuccess ? 'status' : 'alert'}

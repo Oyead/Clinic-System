@@ -11,7 +11,7 @@ import {
 import { BTN_PRIMARY, BTN_SECONDARY, EYEBROW } from './ui.js';
 
 const RAIL = [
-  { icon: IconFlame, value: 'Credits that pay off', note: 'Fee waivers, perks and priority slots' },
+  { icon: IconFlame, value: 'Earn credits for every completed visit', note: 'Redeem them for fee waivers, partner perks, and priority slots.' },
   { icon: IconStar, value: 'Badge unlocked', note: 'Early bird - booked before 9am' },
   { icon: IconTicket, value: 'Next visit ready', note: 'Ticket #1042 · Tue 10:30' },
 ];
@@ -30,7 +30,7 @@ const FEATURES = [
   {
     icon: IconChartBars,
     title: 'Owner reports',
-    text: 'Appointments by status, load per doctor and billing totals - level up with real numbers.',
+    text: 'Appointments by status, load per doctor, and billing totals - real numbers, not guesswork.',
   },
   {
     icon: IconPulseShield,
@@ -48,15 +48,13 @@ export function Hero({ onGetStarted }) {
             <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-mustard)]" />
             Care, levelled up
           </span>
-          <h1 className="font-display text-[clamp(2.7rem,11vw,4.6rem)] font-extrabold leading-[0.95] tracking-[-0.045em] text-[var(--color-ink)] lg:text-[clamp(3.2rem,5.6vw,4.8rem)]">
+          <h1 className="font-display text-[clamp(2rem,11vw,4.6rem)] font-extrabold leading-[0.95] tracking-[-0.045em] text-[var(--color-ink)] lg:text-[clamp(3.2rem,5.6vw,4.8rem)]">
             Your health,
             <br />
             levelled up.
           </h1>
           <p className="max-w-[36ch] text-[1.02rem] leading-[1.65] text-[var(--color-ink-soft)] lg:text-[1.08rem]">
-            Book visits in seconds. Complete them to earn platform credits
-            and keep your Reliable Patient badge - then redeem fee waivers,
-            partner perks and priority slots.
+Book visits in seconds. Show up, earn credits, unlock perks. Credits never affect your care - they’re just our way of saying thanks.
           </p>
           <div className="flex flex-wrap items-center gap-3">
             <button type="button" className={`${BTN_PRIMARY} px-6 py-3.5 text-sm`} onClick={onGetStarted}>
@@ -67,18 +65,18 @@ export function Hero({ onGetStarted }) {
               How it plays
             </a>
           </div>
-          <dl className="mt-1 grid grid-cols-3 gap-4 border-t border-[var(--color-line)] pt-6">
+          <dl className="mt-1 grid grid-cols-3 gap-3 border-t border-[var(--color-line)] pt-6 sm:gap-4">
             <div className="flex flex-col-reverse gap-0.5">
               <dt className={EYEBROW}>Credits redeemed</dt>
-              <dd className="font-display text-[1.5rem] font-extrabold tracking-[-0.03em] text-[var(--color-ink)] lg:text-[1.9rem]">48k</dd>
+              <dd className="font-display text-[1.35rem] font-extrabold tracking-[-0.03em] text-[var(--color-ink)] sm:text-[1.5rem] lg:text-[1.9rem]">48k</dd>
             </div>
             <div className="flex flex-col-reverse gap-0.5">
               <dt className={EYEBROW}>Visits booked</dt>
-              <dd className="font-display text-[1.5rem] font-extrabold tracking-[-0.03em] text-[var(--color-ink)] lg:text-[1.9rem]">120k</dd>
+              <dd className="font-display text-[1.35rem] font-extrabold tracking-[-0.03em] text-[var(--color-ink)] sm:text-[1.5rem] lg:text-[1.9rem]">120k</dd>
             </div>
             <div className="flex flex-col-reverse gap-0.5">
               <dt className={EYEBROW}>Care score</dt>
-              <dd className="font-display text-[1.5rem] font-extrabold tracking-[-0.03em] text-[var(--color-ink)] lg:text-[1.9rem]">4.9</dd>
+              <dd className="font-display text-[1.35rem] font-extrabold tracking-[-0.03em] text-[var(--color-ink)] sm:text-[1.5rem] lg:text-[1.9rem]">4.9</dd>
             </div>
           </dl>
         </div>
@@ -88,7 +86,7 @@ export function Hero({ onGetStarted }) {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <span className="text-[0.66rem] font-bold uppercase tracking-[0.2em] text-[#6b5109]">Visit length</span>
-                <p className="font-display text-[clamp(4.5rem,12vw,7rem)] font-extrabold leading-[0.85] tracking-[-0.06em] text-[var(--color-ink)]">45m</p>
+                <p className="font-display text-[clamp(3.4rem,14vw,7rem)] font-extrabold leading-[0.85] tracking-[-0.06em] text-[var(--color-ink)]">45m</p>
                 <p className="mt-3 max-w-[24ch] text-[0.88rem] leading-[1.6] text-[#4a3606]">
                   Every open slot is a full 45-minute visit - no rushed appointments.
                 </p>

@@ -4,7 +4,7 @@ export const SURFACE_MD = 'bg-white rounded-[24px] shadow-[var(--shadow)]';
 
 export const SURFACE_SOFT = 'bg-[var(--color-sand)] rounded-[20px]';
 
-export const MODAL_BACKDROP = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-[rgba(40,32,22,0.35)] backdrop-blur-[6px]';
+export const MODAL_BACKDROP = 'fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain p-4 bg-[rgba(40,32,22,0.35)] backdrop-blur-[6px] sm:items-center';
 
 export const EYEBROW = 'text-[0.68rem] font-bold uppercase tracking-[0.18em] text-[var(--color-ink-soft)]';
 
@@ -12,7 +12,7 @@ export const SECTION_TITLE = 'font-display text-[1.5rem] font-extrabold leading-
 
 export const FORM_INPUT = 'w-full min-w-0 rounded-[18px] border-0 bg-[var(--color-sand)] px-4 py-3 text-[0.95rem] leading-[1.4] text-[var(--color-ink)] shadow-[inset_0_1px_2px_rgba(80,62,40,0.06)] transition-colors placeholder:text-[var(--color-ink-soft)]/70 focus:bg-white focus:outline-2 focus:outline-[var(--color-mustard)] focus:outline-offset-2 disabled:opacity-60';
 
-export const BTN_BASE = 'inline-flex cursor-pointer items-center justify-center gap-2 rounded-full font-display font-bold transition-[transform,background-color,color,box-shadow] duration-150 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-55 focus-visible:outline-2 focus-visible:outline-[var(--color-mustard)] focus-visible:outline-offset-2';
+export const BTN_BASE = 'inline-flex cursor-pointer items-center whitespace-nowrap justify-center gap-2 rounded-full font-display font-bold transition-[transform,background-color,color,box-shadow] duration-150 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-55 focus-visible:outline-2 focus-visible:outline-[var(--color-mustard)] focus-visible:outline-offset-2';
 
 export const BTN_PRIMARY = `${BTN_BASE} bg-[var(--color-ink)] text-white shadow-[0_12px_24px_-14px_rgba(17,17,17,0.6)] hover:bg-[#2a2a2a]`;
 

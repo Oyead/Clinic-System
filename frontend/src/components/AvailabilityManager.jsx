@@ -111,7 +111,7 @@ export function AvailabilityManager({ token, doctors, notify }) {
   return (
     <div>
       <div className="flex flex-wrap items-start gap-2.5">
-        <label className="flex min-w-[220px] flex-1 flex-col gap-2 text-[0.8rem] font-bold text-[var(--color-ink)]">
+        <label className="flex w-full min-w-0 flex-1 flex-col gap-2 text-[0.8rem] font-bold text-[var(--color-ink)] sm:min-w-[220px]">
           Doctor
           <select className={FORM_INPUT} value={doctorId} onChange={(e) => setDoctorId(e.target.value)}>
             {doctors.map((d) => (
@@ -128,7 +128,7 @@ export function AvailabilityManager({ token, doctors, notify }) {
           <TimeSlotPicker value={time} onChange={setTime} />
         </div>
       </div>
-      <div className="mt-4 flex gap-2.5">
+      <div className="mt-4 flex flex-wrap gap-2.5">
         <button type="button" className={`${BTN_PRIMARY} px-6 py-2.5 text-sm`} onClick={addSlot}>Publish 45-min slot</button>
       </div>
       <h4 className="mt-6 font-display text-[1.05rem] font-bold tracking-[-0.02em] text-[var(--color-ink)]">

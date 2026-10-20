@@ -85,11 +85,11 @@ export function PatientMiniCalendar({ loadRange, reloadKey, onCancel }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" className={`${BTN_GHOST} h-8 w-8 p-0 text-lg leading-none`} onClick={() => go(-1)} aria-label="Previous month">
+        <button type="button" className={`${BTN_GHOST} h-8 w-8 shrink-0 p-0 text-lg leading-none`} onClick={() => go(-1)} aria-label="Previous month">
           ‹
         </button>
-        <strong className="min-w-[132px] text-center font-display text-[0.98rem] font-bold tracking-[-0.02em] text-[var(--color-ink)]">{monthLabel(cursor)}</strong>
-        <button type="button" className={`${BTN_GHOST} h-8 w-8 p-0 text-lg leading-none`} onClick={() => go(1)} aria-label="Next month">
+        <strong className="min-w-[110px] flex-1 text-center font-display text-[0.92rem] font-bold tracking-[-0.02em] text-[var(--color-ink)] sm:min-w-[132px] sm:flex-none sm:text-[0.98rem]">{monthLabel(cursor)}</strong>
+        <button type="button" className={`${BTN_GHOST} h-8 w-8 shrink-0 p-0 text-lg leading-none`} onClick={() => go(1)} aria-label="Next month">
           ›
         </button>
         <button
@@ -111,7 +111,7 @@ export function PatientMiniCalendar({ loadRange, reloadKey, onCancel }) {
         </div>
       )}
 
-      <div className="grid grid-cols-7 gap-1" role="grid" aria-label={`My appointments for ${monthLabel(cursor)}`}>
+      <div className="grid grid-cols-7 gap-0.5 sm:gap-1" role="grid" aria-label={`My appointments for ${monthLabel(cursor)}`}>
         {WEEKDAYS.map((w, i) => (
           <div key={`${w}-${i}`} className="py-0.5 text-center font-display text-[0.6rem] font-bold uppercase tracking-[0.08em] text-[var(--color-ink-soft)]">{w}</div>
         ))}
@@ -162,7 +162,7 @@ export function PatientMiniCalendar({ loadRange, reloadKey, onCancel }) {
                   {a.reason ? <span className="text-[0.8rem] text-[var(--color-ink-soft)]"> · {a.reason}</span> : ''}
                 </span>
                 {onCancel && (
-                  <button type="button" disabled={a.status === 'cancelled'} className={`${BTN_INK} px-3.5 py-1.5 text-xs`} onClick={() => onCancel(a.id)}>
+                  <button type="button" disabled={a.status === 'cancelled'} className={`${BTN_INK} w-full px-3.5 py-1.5 text-xs sm:w-auto`} onClick={() => onCancel(a.id)}>
                     Cancel
                   </button>
                 )}

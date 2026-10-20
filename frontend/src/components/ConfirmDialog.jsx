@@ -120,7 +120,7 @@ export function PasswordDialog({ open, title, message, busy = false, onSubmit, o
             />
           </label>
           {error && <p className="mt-3 rounded-[16px] bg-[rgba(248,161,136,0.18)] px-4 py-3 text-[0.82rem] font-medium text-[#a8442d]" role="alert">{error}</p>}
-          <div className="mt-6 flex justify-end gap-2.5">
+          <div className="mt-6 flex flex-wrap justify-end gap-2.5">
             <button type="button" className={`${BTN_SECONDARY} px-6 py-2.5 text-sm`} onClick={onCancel} disabled={busy}>
               Cancel
             </button>

@@ -331,7 +331,7 @@ export function OwnerPanel() {
           <span className={EYEBROW}>Clinic owner</span>
           <h2 className="mt-1.5 font-display text-[1.8rem] font-extrabold leading-tight tracking-[-0.04em] text-[var(--color-ink)]">My clinics</h2>
         </div>
-        <label className="flex min-w-[220px] flex-col gap-1.5 text-[0.72rem] font-bold uppercase tracking-[0.1em] text-[var(--color-ink-soft)]">
+        <label className="flex w-full flex-col gap-1.5 sm:w-auto sm:min-w-[220px] text-[0.72rem] font-bold uppercase tracking-[0.1em] text-[var(--color-ink-soft)]">
           Active clinic
           <select className={`${FORM_INPUT} bg-[var(--color-sand)] normal-case tracking-normal`} value={clinicId} onChange={(e) => setClinicId(e.target.value)}>
             {clinics.map((c) => <option key={c.id} value={c.id}>{c.name}{c.status && c.status !== 'active' ? ` (${c.status})` : ''}</option>)}
@@ -389,7 +389,7 @@ export function OwnerPanel() {
                       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-white bg-[var(--color-sand)] font-display text-[0.8rem] font-bold text-[var(--color-ink)] shadow-[var(--shadow-sm)]">
                         {(s.email || '?').slice(0, 1).toUpperCase()}
                       </span>
-                      <span className="min-w-0 flex-1 leading-[1.6] text-[var(--color-ink)]">
+                      <span className="min-w-0 flex-1 leading-[1.6] text-[var(--color-ink)] [overflow-wrap:anywhere]">
                         {s.email}<br />
                         <span className="text-[0.8rem] text-[var(--color-ink-soft)]">
                           {s.role}{s.role === 'doctor' ? ` (${s.specialization || ''})` : ''}
@@ -397,7 +397,7 @@ export function OwnerPanel() {
                         {' '}
                         <span className={statusPill(s.status || (s.is_active ? 'active' : 'inactive'))}>{s.status || (s.is_active ? 'active' : 'inactive')}</span>
                       </span>
-                      <span className="flex flex-wrap gap-2">
+                      <span className="flex w-full flex-wrap gap-2 sm:w-auto">
                         {s.status === 'active' && (
                           <button type="button" className={`${BTN_DANGER} px-3.5 py-1.5 text-xs`} onClick={() => suspendStaff(s.user_id)}>Suspend</button>
                         )}
@@ -445,12 +445,12 @@ export function OwnerPanel() {
                   <div className="flex flex-col divide-y divide-[var(--color-line)]">
                     {invites.filter((i) => !i.accepted_at && !i.revoked_at).map((i) => (
                       <div className="flex flex-wrap items-center gap-3 py-3.5 text-sm" key={i.id}>
-                        <span className="min-w-0 flex-1 leading-[1.6] text-[var(--color-ink)]">
+                        <span className="min-w-0 flex-1 leading-[1.6] text-[var(--color-ink)] [overflow-wrap:anywhere]">
                           {i.user_email}<br />
                           <span className="text-[0.8rem] text-[var(--color-ink-soft)]">{i.role} · expires {new Date(i.expires_at).toLocaleString()}</span>
                         </span>
                         <span className={statusPill('invited')}>invited</span>
-                        <span className="flex flex-wrap gap-2">
+                        <span className="flex w-full flex-wrap gap-2 sm:w-auto">
                           <button type="button" className={`${BTN_GHOST} px-3.5 py-1.5 text-xs`} onClick={() => resendInvite(i.id)}>Resend</button>
                           <button type="button" className={`${BTN_DANGER} px-3.5 py-1.5 text-xs`} onClick={() => revokeInvite(i.id)}>Revoke</button>
                         </span>

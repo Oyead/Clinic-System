@@ -44,8 +44,8 @@ export function TimeSlotPicker({ value, onChange }) {
   const handAngle = selectedIndex === -1 ? null : selectedIndex * 30;
 
   return (
-    <div className="flex max-w-[320px] flex-col gap-3 rounded-[20px] bg-white p-4 shadow-[var(--shadow-sm)]">
-      <div className="flex w-full items-center justify-between gap-2">
+    <div className="flex w-full max-w-[320px] flex-col gap-3 rounded-[20px] bg-white p-4 shadow-[var(--shadow-sm)]">
+      <div className="flex w-full flex-wrap items-center justify-between gap-2">
         <div className="flex items-baseline gap-1">
           <button
             type="button"
@@ -82,10 +82,10 @@ export function TimeSlotPicker({ value, onChange }) {
         </div>
       </div>
 
-      <div className="relative flex h-58 w-58 items-center justify-center rounded-full bg-[var(--color-sand)]" role="radiogroup" aria-label={mode === 'hour' ? 'Pick an hour' : 'Pick minutes'}>
+      <div className="relative mx-auto flex h-[148px] w-[148px] shrink-0 items-center justify-center rounded-full bg-[var(--color-sand)] [--clock-r:56px] sm:h-58 sm:w-58 sm:[--clock-r:88px]" role="radiogroup" aria-label={mode === 'hour' ? 'Pick an hour' : 'Pick minutes'}>
         {handAngle !== null && (
           <div
-            className="pointer-events-none absolute left-1/2 top-1/2 h-[88px] w-px origin-bottom -translate-x-1/2 -translate-y-full rounded-full bg-[var(--color-ink)] opacity-30 transition-transform"
+            className="pointer-events-none absolute left-1/2 top-1/2 h-[var(--clock-r)] w-px origin-bottom -translate-x-1/2 -translate-y-full rounded-full bg-[var(--color-ink)] opacity-30 transition-transform"
             style={{ transform: `rotate(${handAngle}deg)` }}
             aria-hidden="true"
           />
@@ -98,9 +98,9 @@ export function TimeSlotPicker({ value, onChange }) {
             aria-checked={mark === selectedMark}
             aria-label={mode === 'hour' ? `Hour ${mark}` : `${pad(mark)} minutes`}
             onClick={() => (mode === 'hour' ? pickHour(mark) : pickMinute(mark))}
-            className={`absolute left-1/2 top-1/2 flex h-8 w-8 cursor-pointer -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-[0.9rem] font-bold transition-colors ${mark === selectedMark ? 'bg-[var(--color-ink)] text-white shadow-[var(--shadow-sm)]' : 'text-[var(--color-ink)] hover:bg-white'}`}
+            className={`absolute left-1/2 top-1/2 flex h-7 w-7 cursor-pointer -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-[0.75rem] font-bold transition-colors sm:h-8 sm:w-8 sm:text-[0.9rem] ${mark === selectedMark ? 'bg-[var(--color-ink)] text-white shadow-[var(--shadow-sm)]' : 'text-[var(--color-ink)] hover:bg-white'}`}
             style={{
-              transform: `rotate(${i * 30}deg) translateY(-88px) rotate(${-i * 30}deg)`,
+              transform: `rotate(${i * 30}deg) translateY(calc(-1 * var(--clock-r))) rotate(${-i * 30}deg)`,
             }}
           >
             {mode === 'hour' ? mark : pad(mark)}

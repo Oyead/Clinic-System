@@ -25,7 +25,7 @@ export function AppointmentRow({ appointment, onDecide, onCancel }) {
   const when = new Date(appointment.appointment_date).toLocaleString();
   return (
     <div className="flex flex-wrap items-center gap-2.5 border-t border-[var(--color-line)] py-4 text-sm first:border-t-0">
-      <span className="min-w-0 flex-1 leading-[1.65] text-[var(--color-ink)]">
+      <span className="min-w-0 flex-1 leading-[1.65] text-[var(--color-ink)] [overflow-wrap:anywhere]">
         <span className="font-bold">#{appointment.id}</span> {appointment.patient_name || ''} → {appointment.doctor_name || ''}
         <br />
         <span className="text-[0.82rem] text-[var(--color-ink-soft)]">
@@ -35,7 +35,7 @@ export function AppointmentRow({ appointment, onDecide, onCancel }) {
         <span className={statusPill(appointment.status)}>{appointment.status.replaceAll('_', ' ')}</span>
         {appointment.reason ? <span className="text-[0.82rem] text-[var(--color-ink-soft)]"> · {appointment.reason}</span> : ''}
       </span>
-      <span className="flex flex-wrap gap-2">
+      <span className="flex w-full flex-wrap gap-2 sm:w-auto">
         {appointment.status === 'pending' && onDecide && (
           <>
             <button type="button" className={`${BTN_SUCCESS} px-3.5 py-1.5 text-xs`} onClick={() => onDecide(appointment.id, 'approve')}>

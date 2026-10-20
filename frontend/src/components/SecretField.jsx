@@ -45,7 +45,7 @@ export function TokenReveal({ token, title = 'Invite token' }) {
   return (
     <div className="mt-3 flex flex-col gap-3 rounded-[20px] bg-[var(--color-sand)] p-4" role="status" aria-label={title}>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[0.85rem] font-bold text-[var(--color-ink)]">{title}</span>
+        <span className="min-w-0 flex-1 text-[0.85rem] font-bold leading-snug text-[var(--color-ink)]">{title}</span>
         <EyeButton visible={show} onToggle={() => setShow((s) => !s)} label="invite token" />
       </div>
       <div className="flex flex-col gap-2 sm:flex-row">

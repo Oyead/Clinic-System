@@ -158,7 +158,7 @@ export function PatientPanel() {
                 )}
               </div>
               {booking.slot && (
-                <span className="inline-flex w-fit rounded-full bg-[rgba(127,217,168,0.2)] px-3 py-1.5 text-[0.78rem] font-bold text-[#2f7d58]">
+                <span className="inline-flex w-fit max-w-full rounded-full bg-[rgba(127,217,168,0.2)] px-3 py-1.5 text-left text-[0.78rem] font-bold text-[#2f7d58]">
                   Picked: {new Date(booking.slot.starts_at).toLocaleString(undefined, { weekday: 'long', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · 45 min
                 </span>
               )}
