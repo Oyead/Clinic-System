@@ -24,14 +24,48 @@ export function buildRangeQuery(status, range) {
   return qs ? `?${qs}` : '';
 }
 
-async function request(path, { token, ...options } = {}) {
+let refreshPromise = null;
+
+async function performRefresh() {
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = (async () => {
+    try {
+      const res = await fetch('/api/v1/auth/refresh', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) throw new Error('refresh failed');
+      const data = await res.json();
+      return data.token;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+  return refreshPromise;
+}
+
+async function request(path, { token, ...options } = {}, retried = false) {
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers.Authorization = `Bearer ${token}`;
   let res;
   try {
-    res = await fetch(path, { ...options, headers: { ...headers, ...options.headers } });
+    res = await fetch(path, {
+      ...options,
+      headers: { ...headers, ...options.headers },
+      credentials: 'include',
+    });
   } catch (_) {
     throw new Error('Cannot reach the server. Is it running?');
+  }
+
+  if (res.status === 401 && !retried) {
+    try {
+      const newToken = await performRefresh();
+      return request(path, { token: newToken, ...options }, true);
+    } catch (_) {
+      throw new Error('Session expired. Please sign in again.');
+    }
   }
   return res;
 }
@@ -60,6 +94,12 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
+
+  refresh: () =>
+    request('/api/v1/auth/refresh', { method: 'POST', credentials: 'include' }),
+
+  signout: () =>
+    request('/api/v1/auth/signout', { method: 'POST', credentials: 'include' }),
 
   adminUsers: (token, role, status) => {
     const params = new URLSearchParams();
