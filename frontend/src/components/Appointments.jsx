@@ -1,8 +1,15 @@
+import { FORM_INPUT, BTN_SUCCESS, BTN_DANGER, BTN_INK, statusPill } from './ui.js';
+
 export function StatusFilter({ id, value, onChange }) {
   return (
-    <label style={{ flex: 1 }}>
+    <label className="flex flex-col gap-1.5 text-[0.78rem] font-bold text-[var(--color-ink)]">
       Status filter
-      <select id={id} value={value} onChange={(e) => onChange(e.target.value)}>
+      <select
+        className={FORM_INPUT}
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
         <option value="">all statuses</option>
         <option value="pending">pending</option>
         <option value="scheduled">scheduled</option>
@@ -17,39 +24,45 @@ export function StatusFilter({ id, value, onChange }) {
 export function AppointmentRow({ appointment, onDecide, onCancel }) {
   const when = new Date(appointment.appointment_date).toLocaleString();
   return (
-    <div className="user-row">
-      <span className="who">
-        #{appointment.id} {appointment.patient_name || ''} → {appointment.doctor_name || ''}
+    <div className="flex flex-wrap items-center gap-2.5 border-t border-[var(--color-line)] py-4 text-sm first:border-t-0">
+      <span className="min-w-0 flex-1 leading-[1.65] text-[var(--color-ink)]">
+        <span className="font-bold">#{appointment.id}</span> {appointment.patient_name || ''} → {appointment.doctor_name || ''}
         <br />
-        {appointment.clinic_name || ''} · {when} · {appointment.status}
-        {appointment.reason ? ` · ${appointment.reason}` : ''}
+        <span className="text-[0.82rem] text-[var(--color-ink-soft)]">
+          {appointment.clinic_name || ''} · {when}
+        </span>
+        {' '}
+        <span className={statusPill(appointment.status)}>{appointment.status.replaceAll('_', ' ')}</span>
+        {appointment.reason ? <span className="text-[0.82rem] text-[var(--color-ink-soft)]"> · {appointment.reason}</span> : ''}
       </span>
-      {appointment.status === 'pending' && onDecide && (
-        <>
-          <button type="button" className="approve" onClick={() => onDecide(appointment.id, 'approve')}>
-            Approve
+      <span className="flex flex-wrap gap-2">
+        {appointment.status === 'pending' && onDecide && (
+          <>
+            <button type="button" className={`${BTN_SUCCESS} px-3.5 py-1.5 text-xs`} onClick={() => onDecide(appointment.id, 'approve')}>
+              Approve
+            </button>
+            <button type="button" className={`${BTN_DANGER} px-3.5 py-1.5 text-xs`} onClick={() => onDecide(appointment.id, 'reject')}>
+              Reject
+            </button>
+          </>
+        )}
+        {(appointment.status === 'pending' || appointment.status === 'scheduled') && onCancel && (
+          <button type="button" className={`${BTN_INK} px-3.5 py-1.5 text-xs`} onClick={() => onCancel(appointment.id)}>
+            Cancel
           </button>
-          <button type="button" className="reject" onClick={() => onDecide(appointment.id, 'reject')}>
-            Reject
-          </button>
-        </>
-      )}
-      {(appointment.status === 'pending' || appointment.status === 'scheduled') && onCancel && (
-        <button type="button" onClick={() => onCancel(appointment.id)}>
-          Cancel
-        </button>
-      )}
+        )}
+      </span>
     </div>
   );
 }
 
 export function AppointmentList({ appointments, emptyText, onDecide, onCancel }) {
-  if (!appointments.length) return <p className="muted">{emptyText}</p>;
+  if (!appointments.length) return <p className="text-[0.85rem] font-medium text-[var(--color-ink-soft)]">{emptyText}</p>;
   return (
-    <>
+    <div className="flex flex-col divide-y divide-[var(--color-line)]">
       {appointments.map((a) => (
         <AppointmentRow key={a.id} appointment={a} onDecide={onDecide} onCancel={onCancel} />
       ))}
-    </>
+    </div>
   );
 }
