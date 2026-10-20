@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { toDayKey, startOfMonth, startOfDay, monthLabel, formatTime, formatFull, buildMonthCells } from './calendarUtils.js';
+import { toDayKey, startOfMonth, startOfDay, monthLabel, formatTime, buildMonthCells } from './calendarUtils.js';
 import { SURFACE, MODAL_BACKDROP, BTN_GHOST, BTN_SUCCESS, BTN_DANGER, BTN_INK, statusPill } from './ui.js';
 
 const ACTIVE_STATUSES = ['pending', 'scheduled'];
@@ -104,15 +104,15 @@ export function ActiveCalendar({ loadRange, reloadKey, onDecide, onCancel }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <button type="button" className={`${BTN_GHOST} h-9 w-9 p-0 text-lg leading-none`} onClick={() => go(-1)} aria-label="Previous month">
             ‹
           </button>
-          <strong className="min-w-[150px] text-center font-display text-[1.1rem] font-bold tracking-[-0.02em] text-[var(--color-ink)]">{monthLabel(cursor)}</strong>
+          <strong className="min-w-[96px] text-center font-display text-[0.98rem] font-bold tracking-[-0.02em] text-[var(--color-ink)] sm:min-w-[150px] sm:text-[1.1rem]">{monthLabel(cursor)}</strong>
           <button type="button" className={`${BTN_GHOST} h-9 w-9 p-0 text-lg leading-none`} onClick={() => go(1)} aria-label="Next month">
             ›
           </button>
-          <button type="button" className={`${BTN_GHOST} px-4 py-1.5 text-[0.76rem]`} onClick={goToday}>
+          <button type="button" className={`${BTN_GHOST} ml-auto px-4 py-1.5 text-[0.76rem]`} onClick={goToday}>
             Today
           </button>
         </div>
@@ -138,9 +138,9 @@ export function ActiveCalendar({ loadRange, reloadKey, onDecide, onCancel }) {
         </div>
       )}
 
-      <div className="grid grid-cols-7 gap-1.5 sm:gap-2" role="grid" aria-label={`Active appointments for ${monthLabel(cursor)}`}>
+      <div className="grid grid-cols-7 gap-0.5 sm:gap-2" role="grid" aria-label={`Active appointments for ${monthLabel(cursor)}`}>
         {WEEKDAYS.map((w) => (
-          <div key={w} className="py-1 text-center font-display text-[0.64rem] font-bold uppercase tracking-[0.12em] text-[var(--color-ink-soft)]">{w}</div>
+          <div key={w} className="py-1 text-center font-display text-[0.56rem] font-bold uppercase tracking-[0.08em] text-[var(--color-ink-soft)] sm:text-[0.64rem] sm:tracking-[0.12em]">{w}</div>
         ))}
         {cells.map((cell) => {
           const list = byDay.get(cell.key) || [];
@@ -155,7 +155,7 @@ export function ActiveCalendar({ loadRange, reloadKey, onDecide, onCancel }) {
               disabled={!hasActive}
               onClick={() => hasActive && setSelectedKey(cell.key)}
               className={[
-                'flex h-[68px] flex-col items-start gap-1 rounded-[16px] p-2 text-left text-[var(--color-ink)] transition-colors sm:h-[104px] sm:gap-1.5 sm:p-2.5',
+                'flex min-h-[64px] flex-col items-start gap-1 rounded-[12px] p-0.5 text-left text-[var(--color-ink)] transition-colors sm:min-h-[104px] sm:gap-1.5 sm:rounded-[16px] sm:p-2.5',
                 hasActive ? 'cursor-pointer bg-white shadow-[var(--shadow-sm)] hover:bg-[#fffdf9]' : 'cursor-default bg-white/45',
                 !cell.inMonth ? 'opacity-45' : '',
                 isSelected ? 'outline-2 outline-offset-2 outline-[var(--color-ink)]' : '',
@@ -163,7 +163,7 @@ export function ActiveCalendar({ loadRange, reloadKey, onDecide, onCancel }) {
               title={hasActive ? `${list.length} active appointment(s) - open details` : 'No active appointments'}
             >
               <span className={[
-                'flex h-7 min-w-7 items-center justify-center rounded-full px-1 font-display text-[0.82rem] font-bold',
+                'flex h-6 min-w-6 items-center justify-center rounded-full px-0.5 font-display text-[0.7rem] font-bold sm:h-7 sm:min-w-7 sm:px-1 sm:text-[0.82rem]',
                 isToday ? 'bg-[var(--color-ink)] text-white' : hasActive ? 'bg-[var(--color-sand)] text-[var(--color-ink)]' : 'text-[var(--color-ink-soft)]',
               ].join(' ').trim()}>
                 {cell.date.getDate()}
@@ -184,7 +184,7 @@ export function ActiveCalendar({ loadRange, reloadKey, onDecide, onCancel }) {
                       <span className="text-[0.66rem] font-bold text-[var(--color-ink-soft)]">+{list.length - 2} more</span>
                     )}
                   </span>
-                  <span className="mt-auto flex gap-1 sm:hidden">
+                  <span className="mt-auto flex w-full justify-center gap-1 sm:hidden">
                     {list.slice(0, 3).map((a) => (
                       <span key={a.id} className={`h-1.5 w-1.5 rounded-full ${a.status === 'pending' ? 'bg-[var(--color-amber-dark)]' : 'bg-[var(--color-mint-dark)]'}`} />
                     ))}
@@ -220,38 +220,44 @@ export function ActiveCalendar({ loadRange, reloadKey, onDecide, onCancel }) {
             </p>
             <div className="mt-4 flex max-h-[46vh] flex-col divide-y divide-[var(--color-line)] overflow-auto rounded-[18px] bg-[var(--color-sand)] px-4 py-1">
               {selectedList.map((a) => (
-                <div key={a.id} className="flex flex-wrap items-center gap-2.5 py-4 text-sm">
-                  <span className="min-w-0 flex-1 leading-[1.65] text-[var(--color-ink)]">
-                    <span className="font-bold">#{a.id}</span> {a.patient_name || ''} → {a.doctor_name || ''}
-                    <br />
-                    <span className="text-[0.82rem] text-[var(--color-ink-soft)]">{a.clinic_name || ''} · {formatFull(a.appointment_date)}</span>
-                    {' '}
+                <div key={a.id} className="grid gap-3 py-4 text-sm sm:grid-cols-[5.5rem_minmax(0,1fr)_auto] sm:items-center sm:gap-4">
+                  <div className="flex flex-wrap items-center gap-2 sm:flex-col sm:items-start sm:gap-1.5">
+                    <span className="font-display text-[0.95rem] font-bold leading-none text-[var(--color-ink)]">{formatTime(a.appointment_date)}</span>
                     <span className={statusPill(a.status)}>{a.status.replaceAll('_', ' ')}</span>
-                    {a.reason ? <span className="text-[0.82rem] text-[var(--color-ink-soft)]"> · {a.reason}</span> : ''}
-                  </span>
-                  <span className="flex flex-wrap gap-2">
+                  </div>
+                  <div className="min-w-0 [overflow-wrap:anywhere]">
+                    <p className="leading-[1.55] text-[var(--color-ink)]">
+                      <span className="font-bold">#{a.id}</span> {a.patient_name || 'Patient'} <span className="text-[var(--color-ink-soft)]">→</span> {a.doctor_name || 'Doctor'}
+                    </p>
+                    <p className="mt-1 text-[0.8rem] leading-[1.5] text-[var(--color-ink-soft)]">
+                      {a.clinic_name || 'Clinic'}{a.reason ? ` · ${a.reason}` : ''}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 sm:justify-end">
                     {a.status === 'pending' && onDecide && (
                       <>
-                        <button type="button" className={`${BTN_SUCCESS} px-3.5 py-1.5 text-xs`} onClick={() => onDecide(a.id, 'approve')}>
+                        <button type="button" className={`${BTN_SUCCESS} flex-1 px-3.5 py-1.5 text-xs sm:flex-none`} onClick={() => onDecide(a.id, 'approve')}>
                           Approve
                         </button>
-                        <button type="button" className={`${BTN_DANGER} px-3.5 py-1.5 text-xs`} onClick={() => onDecide(a.id, 'reject')}>
+                        <button type="button" className={`${BTN_DANGER} flex-1 px-3.5 py-1.5 text-xs sm:flex-none`} onClick={() => onDecide(a.id, 'reject')}>
                           Reject
                         </button>
                       </>
                     )}
                     {(a.status === 'pending' || a.status === 'scheduled') && onCancel && (
-                      <button type="button" className={`${BTN_INK} px-3.5 py-1.5 text-xs`} onClick={() => onCancel(a.id)}>
+                      <button type="button" className={`${BTN_INK} flex-1 px-3.5 py-1.5 text-xs sm:flex-none`} onClick={() => onCancel(a.id)}>
                         Cancel
                       </button>
                     )}
-                  </span>
+                  </div>
                 </div>
               ))}
             </div>
-            <button type="button" className={`${BTN_INK} mt-5 px-7 py-2.5 text-sm`} onClick={() => setSelectedKey(null)}>
-              Close
-            </button>
+            <div className="mt-5 flex justify-end">
+              <button type="button" className={`${BTN_INK} w-full px-7 py-2.5 text-sm sm:w-auto`} onClick={() => setSelectedKey(null)}>
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
