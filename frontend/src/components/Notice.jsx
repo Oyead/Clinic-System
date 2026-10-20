@@ -23,9 +23,9 @@ function textToString(node) {
 
 function SuccessIcon() {
   return (
-    <span className="popup-icon popup-icon-success" aria-hidden="true">
-      <svg viewBox="0 0 64 64" width="64" height="64">
-        <circle cx="32" cy="32" r="30" className="popup-icon-ring-success" />
+    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[rgba(127,217,168,0.2)]" aria-hidden="true">
+      <svg viewBox="0 0 64 64" width="26" height="26">
+        <circle cx="32" cy="32" r="30" className="fill-[var(--color-mint-dark)]" />
         <path
           d="M20 33.5 28.5 42 44 25"
           fill="none"
@@ -41,9 +41,9 @@ function SuccessIcon() {
 
 function ErrorIcon() {
   return (
-    <span className="popup-icon popup-icon-error" aria-hidden="true">
-      <svg viewBox="0 0 64 64" width="64" height="64">
-        <circle cx="32" cy="32" r="30" className="popup-icon-ring-error" />
+    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[rgba(248,161,136,0.2)]" aria-hidden="true">
+      <svg viewBox="0 0 64 64" width="26" height="26">
+        <circle cx="32" cy="32" r="30" className="fill-[var(--color-coral-dark)]" />
         <path
           d="M23 23l18 18M41 23L23 41"
           fill="none"
@@ -81,7 +81,7 @@ export function Notice({ notice, onClose }) {
       timers.current.forEach(clearTimeout);
       timers.current = [];
     };
-  }, [notice?.id, notice?.text, onClose]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [notice?.id, notice?.text, onClose]);
 
   useEffect(() => {
     if (!notice?.text) return undefined;
@@ -97,26 +97,26 @@ export function Notice({ notice, onClose }) {
   const isSuccess = notice.kind === 'success';
 
   return createPortal(
-    <div className="popup-stack" aria-hidden="false">
+    <div className="pointer-events-none fixed bottom-4 left-4 z-[100] flex flex-col gap-3 sm:bottom-5 sm:left-5" aria-hidden="false">
       <div
-        className={`popup popup-${isSuccess ? 'success' : 'error'}${leaving ? ' leaving' : ''}`}
+        className={`relative flex w-[min(420px,calc(100vw_-_32px))] flex-row items-center gap-3 rounded-[24px] bg-white p-4 pr-11 shadow-[var(--shadow)] transition-all duration-300 ease-out ${leaving ? 'pointer-events-none translate-y-2 scale-95 opacity-0' : ''}`}
         role={isSuccess ? 'status' : 'alert'}
         aria-live={isSuccess ? 'polite' : 'assertive'}
       >
-        <button type="button" className="popup-close" aria-label="Dismiss message" tabIndex={0} onClick={dismiss}>
+        <button type="button" className="absolute right-2 top-2 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-transparent text-[1.3rem] font-normal leading-none text-[var(--color-ink-soft)] transition-colors hover:bg-[var(--color-sand)] hover:text-[var(--color-ink)]" aria-label="Dismiss message" tabIndex={0} onClick={dismiss}>
           ×
         </button>
         {isSuccess ? <SuccessIcon /> : <ErrorIcon />}
-        <div className="popup-main">
-          <h2 className="popup-title">{isSuccess ? 'Success!' : 'Error!'}</h2>
-          <p className="popup-text">{notice.text}</p>
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <h2 className="font-display text-[0.92rem] font-extrabold tracking-[-0.01em] text-[var(--color-ink)]">{isSuccess ? 'Success!' : 'Error!'}</h2>
+          <p className="text-[0.78rem] font-normal leading-[1.55] text-[var(--color-ink-soft)] [overflow-wrap:anywhere]">{notice.text}</p>
         </div>
         <button
           type="button"
-          className={`popup-action popup-action-${isSuccess ? 'success' : 'error'}`}
+          className={`shrink-0 cursor-pointer rounded-full px-3.5 py-1.5 text-[0.72rem] font-bold shadow-[var(--shadow-sm)] transition-colors ${isSuccess ? 'bg-[var(--color-sand)] text-[var(--color-ink)] hover:bg-[var(--color-sand-deep)]' : 'bg-[var(--color-ink)] text-white hover:bg-[#2a2a2a]'}`}
           onClick={dismiss}
         >
-          {isSuccess ? 'Continue Browsing' : 'Try Again'}
+          {isSuccess ? 'Continue' : 'Try Again'}
         </button>
       </div>
     </div>,
