@@ -1,7 +1,7 @@
 #!/bin/bash
 # Verifies every action for each role EXCEPT admin.
-# (Admin login is used only for setup — approving the clinic and resolving a
-# suspension — since the spec requires an admin for those steps.)
+# (Admin login is used only for setup - approving the clinic and resolving a
+# suspension - since the spec requires an admin for those steps.)
 #
 # Usage: BASE=http://localhost:5001 bash scripts/verify-roles.sh
 # Requires: backend running + migrations applied.
