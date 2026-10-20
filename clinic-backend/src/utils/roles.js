@@ -1,5 +1,5 @@
 // Canonical role + status vocab for the role-hierarchy flows.
-// Role is always derived server-side from the endpoint/flow — never from client input.
+// Role is always derived server-side from the endpoint/flow - never from client input.
 
 const ROLES = ['admin', 'clinic_owner', 'doctor', 'receptionist', 'patient'];
 
