@@ -3,6 +3,9 @@ import { api, readError } from '../api/client.js';
 import { DatePickerCalendar } from './DatePickerCalendar.jsx';
 import { TimeSlotPicker } from './TimeSlotPicker.jsx';
 import { formatTime } from './calendarUtils.js';
+import { FORM_INPUT, BTN_PRIMARY, BTN_GHOST, EYEBROW, statusPill } from './ui.js';
+
+const SLOT_MINUTES = 45;
 
 export function AvailabilityManager({ token, doctors, notify }) {
   const [doctorId, setDoctorId] = useState('');
@@ -58,6 +61,16 @@ export function AvailabilityManager({ token, doctors, notify }) {
       notify('The slot must start in the future.', 'error');
       return;
     }
+    const newEnd = new Date(startsAt.getTime() + SLOT_MINUTES * 60000);
+    const overlap = (slots || []).find((s) => {
+      const existingStart = new Date(s.starts_at);
+      const existingEnd = new Date(existingStart.getTime() + SLOT_MINUTES * 60000);
+      return startsAt < existingEnd && existingStart < newEnd;
+    });
+    if (overlap) {
+      notify(`This slot overlaps an existing ${formatTime(overlap.starts_at)} slot.`, 'error');
+      return;
+    }
     try {
       const res = await api.createAvailability(token, {
         doctor_id: Number(doctorId),
@@ -97,51 +110,54 @@ export function AvailabilityManager({ token, doctors, notify }) {
 
   return (
     <div>
-      <div className="row">
-        <label style={{ flex: 1 }}>
+      <div className="flex flex-wrap items-start gap-2.5">
+        <label className="flex min-w-[220px] flex-1 flex-col gap-2 text-[0.8rem] font-bold text-[var(--color-ink)]">
           Doctor
-          <select value={doctorId} onChange={(e) => setDoctorId(e.target.value)}>
+          <select className={FORM_INPUT} value={doctorId} onChange={(e) => setDoctorId(e.target.value)}>
             {doctors.map((d) => (
               <option key={d.id} value={d.id}>{d.name} ({d.specialization || ''})</option>
             ))}
           </select>
         </label>
       </div>
-      <p className="hint">Pick a day, then a start time. Each slot lasts 45 minutes. Overlapping or after-hours starts are rejected.</p>
-      <div className="row" style={{ alignItems: 'flex-start' }}>
-        <div style={{ flex: 1 }}>
+      <div className="mt-4 flex flex-col items-stretch gap-4 lg:flex-row lg:gap-4">
+        <div className="flex-1 rounded-[20px] bg-white p-4 shadow-[var(--shadow-sm)]">
           <DatePickerCalendar value={day} onChange={setDay} />
         </div>
-        <div style={{ flex: 1 }}>
+        <div className="flex-1 rounded-[20px] bg-white p-4 shadow-[var(--shadow-sm)]">
           <TimeSlotPicker value={time} onChange={setTime} />
         </div>
       </div>
-      <div className="row" style={{ marginTop: 8 }}>
-        <button type="button" onClick={addSlot}>Publish 45-min slot</button>
+      <div className="mt-4 flex gap-2.5">
+        <button type="button" className={`${BTN_PRIMARY} px-6 py-2.5 text-sm`} onClick={addSlot}>Publish 45-min slot</button>
       </div>
-      <h4>
+      <h4 className="mt-6 font-display text-[1.05rem] font-bold tracking-[-0.02em] text-[var(--color-ink)]">
         {day
           ? `Slots on ${new Date(`${day}T12:00:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}`
           : 'Slots'}
       </h4>
-      <div>
-        {dayLoading ? <p className="muted">Loading…</p>
-          : slots === null ? <p className="muted">Pick a doctor and a day to see slots.</p>
-          : slots.length === 0 ? <p className="muted">No slots published for this day yet.</p>
-          : slots.map((s) => (
-            <div className="user-row" key={s.id}>
-              <span className="who">
-                {formatTime(s.starts_at)} · 45 min · {s.doctor_name || ''} @ {s.clinic_name || ''}
-                <br />
-                <span className={`cal-status ${s.status}`}>{s.status}</span>
-              </span>
-              {s.status === 'open' && (
-                <button type="button" className="remove" onClick={() => removeSlot(s.id)}>Withdraw</button>
-              )}
+      <div className="mt-2">
+        {dayLoading ? <p className="text-[0.85rem] font-medium text-[var(--color-ink-soft)]">Loading…</p>
+          : slots === null ? <p className="text-[0.85rem] font-medium text-[var(--color-ink-soft)]">Pick a doctor and a day to see slots.</p>
+          : slots.length === 0 ? <p className="text-[0.85rem] font-medium text-[var(--color-ink-soft)]">No slots published for this day yet.</p>
+          : (
+            <div className="flex flex-col divide-y divide-[var(--color-line)]">
+              {slots.map((s) => (
+                <div className="flex flex-wrap items-center gap-2.5 py-3 text-sm" key={s.id}>
+                  <span className="min-w-0 flex-1 leading-[1.6] text-[var(--color-ink)]">
+                    {formatTime(s.starts_at)} · 45 min · {s.doctor_name || ''} @ {s.clinic_name || ''}
+                    <br />
+                    <span className={statusPill(s.status)}>{s.status}</span>
+                  </span>
+                  {s.status === 'open' && (
+                    <button type="button" className={`${BTN_GHOST} px-3.5 py-1.5 text-xs`} onClick={() => removeSlot(s.id)}>Withdraw</button>
+                  )}
+                </div>
+              ))}
             </div>
-          ))}
+          )}
       </div>
-      <p className="hint">Booked slots stay visible until the appointment is cancelled or rejected, which frees them again. Withdrawn slots disappear for patients.</p>
+      <p className={`${EYEBROW} mt-4`}>Booked slots free up on cancel/reject.</p>
     </div>
   );
 }
