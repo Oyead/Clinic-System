@@ -6,6 +6,7 @@ import { ConfirmDialog, PasswordDialog } from './ConfirmDialog.jsx';
 import { PasswordInput, TokenReveal } from './SecretField.jsx';
 import { AppointmentList, StatusFilter } from './Appointments.jsx';
 import { PanelTabs, usePersistentTab } from './Tabs.jsx';
+import { FORM_INPUT, BTN_PRIMARY, BTN_SECONDARY, BTN_SUCCESS, BTN_SUCCESS_INK, BTN_DANGER, EYEBROW, SECTION_TITLE, statusPill } from './ui.js';
 
 const initialFilters = {
   role: '',
@@ -339,161 +340,252 @@ export function AdminPanel() {
   };
 
   return (
-    <section className="card">
-      <h2><span className="eyebrow">Administration</span>Console</h2>
-      <Notice notice={notice} onClose={dismissNotice} />
-      <PanelTabs tabs={ADMIN_TABS} active={tab} onChange={setTab} label="Admin sections" />
-
-      {tab === 'clinics' && (
-      <>
-      <h3>Clinic approvals <span className="hint">PATCH /api/v1/admin/clinics/:id/approve</span></h3>
-      <div className="row"><button type="button" onClick={loadPendingClinics}>Show pending clinics</button></div>
+    <section className="rounded-[24px] bg-white p-4 shadow-[var(--shadow)] sm:p-7">
       <div>
-        {pendingClinics === null ? <p className="muted">Not shown yet.</p>
-          : pendingClinics.length === 0 ? <p className="muted">No clinics awaiting verification.</p>
-          : pendingClinics.map((c) => (
-            <div className="user-row" key={c.id}>
-              <span className="who">#{c.id} {c.name}<br />{c.address} · owner: {c.owner_email || `#${c.owner_id ?? '—'}`}</span>
-              <button type="button" className="approve" onClick={() => approveClinic(c.id)}>Approve</button>
-            </div>
-          ))}
+        <span className={EYEBROW}>Administration</span>
+        <h2 className="mt-1.5 font-display text-[1.8rem] font-extrabold leading-tight tracking-[-0.04em] text-[var(--color-ink)]">Console</h2>
+      </div>
+      <Notice notice={notice} onClose={dismissNotice} />
+      <div className="mt-5">
+        <PanelTabs tabs={ADMIN_TABS} active={tab} onChange={setTab} label="Admin sections" />
       </div>
 
-      <h3>Clinics <span className="hint">POST /api/v1/admin/clinics</span></h3>
-      <form className="profile-fields" noValidate onSubmit={submitClinic}>
-        <label>Name<input name="name" required placeholder="e.g. Downtown Clinic" value={clinicForm.name} onChange={(e) => handleFormChange('clinic', e)} /></label>
-        <label>Phone number<input name="phone_number" required placeholder="e.g. +1-555-0100" value={clinicForm.phone_number} onChange={(e) => handleFormChange('clinic', e)} /></label>
-        <label>Address<input name="address" required placeholder="e.g. 123 Main St" value={clinicForm.address} onChange={(e) => handleFormChange('clinic', e)} /></label>
-        <label>Email<input name="email" type="email" required placeholder="e.g. clinic@example.com" value={clinicForm.email} onChange={(e) => handleFormChange('clinic', e)} /></label>
-        <button type="submit">Create clinic</button>
-      </form>
-      </>
+      {tab === 'clinics' && (
+        <>
+          <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h3 className={SECTION_TITLE}>Clinic approvals</h3>
+              <p className={`${EYEBROW} mt-1.5`}>PATCH /api/v1/admin/clinics/:id/approve</p>
+            </div>
+            <button type="button" className={`${BTN_SECONDARY} px-4 py-2 text-xs`} onClick={loadPendingClinics}>Show pending clinics</button>
+          </div>
+          <div className="mt-3">
+            {pendingClinics === null ? <p className="text-[0.85rem] font-medium text-[var(--color-ink-soft)]">Not shown yet.</p>
+              : pendingClinics.length === 0 ? <p className="text-[0.85rem] font-medium text-[var(--color-ink-soft)]">No clinics awaiting verification.</p>
+              : (
+                <div className="flex flex-col divide-y divide-[var(--color-line)]">
+                  {pendingClinics.map((c) => (
+                    <div className="flex flex-wrap items-center gap-3 py-3.5 text-sm" key={c.id}>
+                      <span className="min-w-0 flex-1 leading-[1.6] text-[var(--color-ink)]">
+                        <span className="font-bold">#{c.id} {c.name}</span><br />
+                        <span className="text-[0.8rem] text-[var(--color-ink-soft)]">{c.address} · owner: {c.owner_email || `#${c.owner_id ?? '-'}`}</span>
+                      </span>
+                      <span className={statusPill('pending_verification')}>pending</span>
+                      <button type="button" className={`${BTN_SUCCESS} px-4 py-1.5 text-xs`} onClick={() => approveClinic(c.id)}>Approve</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+          </div>
+
+          <div className="mt-7 flex flex-wrap items-end justify-between gap-2">
+            <h3 className={SECTION_TITLE}>Create clinic</h3>
+            <p className={EYEBROW}>POST /api/v1/admin/clinics</p>
+          </div>
+          <form className="mt-3 grid gap-3 rounded-[20px] bg-[var(--color-sand)] p-4 sm:grid-cols-2" noValidate onSubmit={submitClinic}>
+            <label className="flex flex-col gap-1.5 text-[0.8rem] font-bold text-[var(--color-ink)]">
+              Name
+              <input name="name" required placeholder="e.g. Downtown Clinic" className={`${FORM_INPUT} bg-white`} value={clinicForm.name} onChange={(e) => handleFormChange('clinic', e)} />
+            </label>
+            <label className="flex flex-col gap-1.5 text-[0.8rem] font-bold text-[var(--color-ink)]">
+              Phone number
+              <input name="phone_number" required placeholder="e.g. +1-555-0100" className={`${FORM_INPUT} bg-white`} value={clinicForm.phone_number} onChange={(e) => handleFormChange('clinic', e)} />
+            </label>
+            <label className="flex flex-col gap-1.5 text-[0.8rem] font-bold text-[var(--color-ink)]">
+              Address
+              <input name="address" required placeholder="e.g. 123 Main St" className={`${FORM_INPUT} bg-white`} value={clinicForm.address} onChange={(e) => handleFormChange('clinic', e)} />
+            </label>
+            <label className="flex flex-col gap-1.5 text-[0.8rem] font-bold text-[var(--color-ink)]">
+              Email
+              <input name="email" type="email" required placeholder="e.g. clinic@example.com" className={`${FORM_INPUT} bg-white`} value={clinicForm.email} onChange={(e) => handleFormChange('clinic', e)} />
+            </label>
+            <button type="submit" className={`${BTN_PRIMARY} w-fit px-6 py-2.5 text-sm sm:col-span-2`}>Create clinic</button>
+          </form>
+        </>
       )}
 
       {tab === 'admins' && (
-      <>
-      <h3>Create admin <span className="hint">POST /api/v1/admin/admins</span></h3>
-      <p className="hint">Admins have no signup path — additional admins are created here only, by an existing admin.</p>
-      <form className="profile-fields" noValidate onSubmit={submitAdmin}>
-        <label>Email<input name="email" type="email" required value={adminForm.email} onChange={(e) => handleFormChange('admin', e)} /></label>
-        <label>Password (min 8 characters)<PasswordInput name="password" required minLength={8} value={adminForm.password} onChange={(e) => handleFormChange('admin', e)} /></label>
-        <button type="submit">Create admin</button>
-      </form>
-      </>
+        <>
+          <div className="mt-6 flex flex-wrap items-end justify-between gap-2">
+            <h3 className={SECTION_TITLE}>Create admin</h3>
+            <p className={EYEBROW}>POST /api/v1/admin/admins</p>
+          </div>
+          <p className="mt-1.5 text-[0.82rem] leading-[1.65] text-[var(--color-ink-soft)]">Admins have no signup path - additional admins are created here only, by an existing admin.</p>
+          <form className="mt-3 flex flex-col gap-3 rounded-[20px] bg-[var(--color-sand)] p-4 sm:max-w-[480px]" noValidate onSubmit={submitAdmin}>
+            <label className="flex flex-col gap-1.5 text-[0.8rem] font-bold text-[var(--color-ink)]">
+              Email
+              <input name="email" type="email" required className={`${FORM_INPUT} bg-white`} value={adminForm.email} onChange={(e) => handleFormChange('admin', e)} />
+            </label>
+            <label className="flex flex-col gap-1.5 text-[0.8rem] font-bold text-[var(--color-ink)]">
+              Password (min 8 characters)
+              <PasswordInput name="password" required minLength={8} className="bg-white" value={adminForm.password} onChange={(e) => handleFormChange('admin', e)} />
+            </label>
+            <button type="submit" className={`${BTN_PRIMARY} w-fit px-6 py-2.5 text-sm`}>Create admin</button>
+          </form>
+        </>
       )}
 
       {tab === 'invites' && (
-      <>
-      <h3>Invite staff (support override) <span className="hint">POST /api/v1/admin/staff/invite</span></h3>
-      <p className="hint">Normally owners invite their own staff. Admins use this only for support. Role derives from this endpoint — never from client-editable role fields.</p>
-      <form className="profile-fields" noValidate onSubmit={submitInvite}>
-        <label>Email<input name="email" type="email" required value={inviteForm.email} onChange={(e) => handleFormChange('invite', e)} /></label>
-        <label>Role
-          <select name="role" value={inviteForm.role} onChange={(e) => handleFormChange('invite', e)}>
-            <option value="doctor">doctor</option>
-            <option value="receptionist">receptionist</option>
-            <option value="clinic_owner">clinic_owner</option>
-          </select>
-        </label>
-        <label>Full name<input name="name" type="text" required value={inviteForm.name} onChange={(e) => handleFormChange('invite', e)} /></label>
-        <label>Clinic ID<input name="clinic_id" type="number" min={1} required value={inviteForm.clinic_id} onChange={(e) => handleFormChange('invite', e)} /></label>
-        <label>Specialization (doctors only)<input name="specialization" type="text" value={inviteForm.specialization} onChange={(e) => handleFormChange('invite', e)} /></label>
-        <button type="submit">Send invite</button>
-      </form>
-      {inviteToken && (
-        <TokenReveal token={inviteToken} title="Staff invite token — share it with the invitee" />
-      )}
-      </>
+        <>
+          <div className="mt-6 flex flex-wrap items-end justify-between gap-2">
+            <h3 className={SECTION_TITLE}>Invite staff <span className="text-[0.8rem] font-medium text-[var(--color-ink-soft)]">(support override)</span></h3>
+            <p className={EYEBROW}>POST /api/v1/admin/staff/invite</p>
+          </div>
+          <p className="mt-1.5 text-[0.82rem] leading-[1.65] text-[var(--color-ink-soft)]">Normally owners invite their own staff. Admins use this only for support. Role derives from this endpoint - never from client-editable role fields.</p>
+          <form className="mt-3 grid gap-3 rounded-[20px] bg-[var(--color-sand)] p-4 sm:grid-cols-2" noValidate onSubmit={submitInvite}>
+            <label className="flex flex-col gap-1.5 text-[0.8rem] font-bold text-[var(--color-ink)]">
+              Email
+              <input name="email" type="email" required className={`${FORM_INPUT} bg-white`} value={inviteForm.email} onChange={(e) => handleFormChange('invite', e)} />
+            </label>
+            <label className="flex flex-col gap-1.5 text-[0.8rem] font-bold text-[var(--color-ink)]">
+              Role
+              <select name="role" value={inviteForm.role} onChange={(e) => handleFormChange('invite', e)} className={`${FORM_INPUT} bg-white`}>
+                <option value="doctor">doctor</option>
+                <option value="receptionist">receptionist</option>
+                <option value="clinic_owner">clinic_owner</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1.5 text-[0.8rem] font-bold text-[var(--color-ink)]">
+              Full name
+              <input name="name" type="text" required className={`${FORM_INPUT} bg-white`} value={inviteForm.name} onChange={(e) => handleFormChange('invite', e)} />
+            </label>
+            <label className="flex flex-col gap-1.5 text-[0.8rem] font-bold text-[var(--color-ink)]">
+              Clinic ID
+              <input name="clinic_id" type="number" min={1} required className={`${FORM_INPUT} bg-white`} value={inviteForm.clinic_id} onChange={(e) => handleFormChange('invite', e)} />
+            </label>
+            <label className="flex flex-col gap-1.5 text-[0.8rem] font-bold text-[var(--color-ink)] sm:col-span-2">
+              Specialization <span className="font-medium text-[var(--color-ink-soft)]">doctors only</span>
+              <input name="specialization" type="text" className={`${FORM_INPUT} bg-white`} value={inviteForm.specialization} onChange={(e) => handleFormChange('invite', e)} />
+            </label>
+            <button type="submit" className={`${BTN_PRIMARY} w-fit px-6 py-2.5 text-sm sm:col-span-2`}>Send invite</button>
+          </form>
+          {inviteToken && (
+            <TokenReveal token={inviteToken} title="Staff invite token - share it with the invitee" />
+          )}
+        </>
       )}
 
       {tab === 'users' && (
-      <>
-      <h3>Users <span className="hint">GET /api/v1/admin/users · lifecycle: suspend / reinstate / offboard</span></h3>
-      <p className="hint">Roles derive from signup/invite flows and are never edited in place. Moving a staffer between clinics means offboard-and-reinvite.</p>
-      <div className="row">
-        <button type="button" onClick={loadUsers}>Show users</button>
-        <button type="button" onClick={loadAudit}>Show audit log</button>
-      </div>
-      <div className="row" style={{ marginTop: 8 }}>
-        <label style={{ flex: 1 }}>Role filter
-          <select value={roleFilter} onChange={(e) => updateFilter('role', e.target.value)}>
-            <option value="">all roles</option>
-            {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
-          </select>
-        </label>
-        <label style={{ flex: 1 }}>Status filter
-          <select value={statusFilter} onChange={(e) => updateFilter('status', e.target.value)}>
-            <option value="">all statuses</option>
-            <option value="pending_verification">pending_verification</option>
-            <option value="invited">invited</option>
-            <option value="active">active</option>
-            <option value="suspended">suspended</option>
-            <option value="offboarded">offboarded</option>
-          </select>
-        </label>
-      </div>
-      <div>
-        {usersLoading ? <p className="muted">Showing…</p>
-          : users === null ? <p className="muted">Not shown yet.</p>
-          : users.length === 0 ? <p className="muted">No users found.</p>
-          : <UserRows users={users} onSuspend={suspendUser} onReinstate={reinstateUser} onOffboard={offboardUser} />}
-      </div>
-      </>
+        <>
+          <div className="mt-6 flex flex-wrap items-end justify-between gap-2">
+            <h3 className={SECTION_TITLE}>Users</h3>
+            <p className={EYEBROW}>GET /api/v1/admin/users · lifecycle: suspend / reinstate / offboard</p>
+          </div>
+          <p className="mt-1.5 text-[0.82rem] leading-[1.65] text-[var(--color-ink-soft)]">Roles derive from signup/invite flows and are never edited in place. Moving a staffer between clinics means offboard-and-reinvite.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" className={`${BTN_SECONDARY} px-4 py-2 text-xs`} onClick={loadUsers}>Show users</button>
+            <button type="button" className={`${BTN_SECONDARY} px-4 py-2 text-xs`} onClick={loadAudit}>Show audit log</button>
+          </div>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+            <label className="flex flex-col gap-1.5 text-[0.78rem] font-bold text-[var(--color-ink)] sm:flex-1">
+              Role filter
+              <select value={roleFilter} onChange={(e) => updateFilter('role', e.target.value)} className={FORM_INPUT}>
+                <option value="">all roles</option>
+                {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1.5 text-[0.78rem] font-bold text-[var(--color-ink)] sm:flex-1">
+              Status filter
+              <select value={statusFilter} onChange={(e) => updateFilter('status', e.target.value)} className={FORM_INPUT}>
+                <option value="">all statuses</option>
+                <option value="pending_verification">pending_verification</option>
+                <option value="invited">invited</option>
+                <option value="active">active</option>
+                <option value="suspended">suspended</option>
+                <option value="offboarded">offboarded</option>
+              </select>
+            </label>
+          </div>
+          <div className="mt-3">
+            {usersLoading ? <p className="text-[0.85rem] font-medium text-[var(--color-ink-soft)]">Showing…</p>
+              : users === null ? <p className="text-[0.85rem] font-medium text-[var(--color-ink-soft)]">Not shown yet.</p>
+              : users.length === 0 ? <p className="text-[0.85rem] font-medium text-[var(--color-ink-soft)]">No users found.</p>
+              : <UserRows users={users} onSuspend={suspendUser} onReinstate={reinstateUser} onOffboard={offboardUser} />}
+          </div>
+        </>
       )}
 
       {tab === 'patients' && (
-      <>
-      <h3>Patients <span className="hint">GET /api/v1/admin/patients · PUT /api/v1/admin/patients/:id/link-user</span></h3>
-      <div className="row"><button type="button" onClick={loadPatients}>Show patients</button></div>
-      <div className="row" style={{ marginTop: 8 }}>
-        <label style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <input type="checkbox" style={{ width: 'auto' }} checked={unlinkedOnly} onChange={(e) => updateFilter('unlinkedOnly', e.target.checked)} /> Only unlinked
-        </label>
-      </div>
-      <div>
-        {patients === null ? <p className="muted">Not shown yet.</p>
-          : patients.length === 0 ? <p className="muted">No patients found.</p>
-          : patients.map((p) => (
-            <div className="audit-row" key={p.id}>#{p.id} {p.name || '—'} &lt;{p.email || '—'}&gt; user:{p.user_id ?? 'unlinked'}</div>
-          ))}
-      </div>
-      <form className="profile-fields" noValidate onSubmit={submitLink}>
-        <label>Patient ID<input name="patient_id" type="number" min={1} required value={linkForm.patient_id} onChange={(e) => handleFormChange('link', e)} /></label>
-        <label>User ID (must have role patient)<input name="user_id" type="number" min={1} required value={linkForm.user_id} onChange={(e) => handleFormChange('link', e)} /></label>
-        <button type="submit">Link patient to user</button>
-      </form>
-      </>
+        <>
+          <div className="mt-6 flex flex-wrap items-end justify-between gap-2">
+            <h3 className={SECTION_TITLE}>Patients</h3>
+            <p className={EYEBROW}>GET /api/v1/admin/patients · PUT /api/v1/admin/patients/:id/link-user</p>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <button type="button" className={`${BTN_SECONDARY} px-4 py-2 text-xs`} onClick={loadPatients}>Show patients</button>
+            <label className="flex items-center gap-2 text-[0.8rem] font-bold text-[var(--color-ink)]">
+              <input type="checkbox" className="h-4 w-4 rounded accent-[var(--color-ink)]" checked={unlinkedOnly} onChange={(e) => updateFilter('unlinkedOnly', e.target.checked)} /> Only unlinked
+            </label>
+          </div>
+          <div className="mt-3">
+            {patients === null ? <p className="text-[0.85rem] font-medium text-[var(--color-ink-soft)]">Not shown yet.</p>
+              : patients.length === 0 ? <p className="text-[0.85rem] font-medium text-[var(--color-ink-soft)]">No patients found.</p>
+              : (
+                <div className="flex flex-col divide-y divide-[var(--color-line)]">
+                  {patients.map((p) => (
+                    <div className="py-2.5 text-[0.85rem] leading-[1.6] text-[var(--color-ink)]" key={p.id}>
+                      <span className="font-bold">#{p.id}</span> {p.name || '-'} &lt;{p.email || '-'}&gt; <span className="text-[var(--color-ink-soft)]">user: {p.user_id ?? 'unlinked'}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+          </div>
+          <h4 className="mt-6 font-display text-[1.05rem] font-bold text-[var(--color-ink)]">Link patient to user</h4>
+          <form className="mt-2 flex flex-col gap-3 rounded-[20px] bg-[var(--color-sand)] p-4 sm:max-w-[480px]" noValidate onSubmit={submitLink}>
+            <label className="flex flex-col gap-1.5 text-[0.8rem] font-bold text-[var(--color-ink)]">
+              Patient ID
+              <input name="patient_id" type="number" min={1} required className={`${FORM_INPUT} bg-white`} value={linkForm.patient_id} onChange={(e) => handleFormChange('link', e)} />
+            </label>
+            <label className="flex flex-col gap-1.5 text-[0.8rem] font-bold text-[var(--color-ink)]">
+              User ID <span className="font-medium text-[var(--color-ink-soft)]">must have role patient</span>
+              <input name="user_id" type="number" min={1} required className={`${FORM_INPUT} bg-white`} value={linkForm.user_id} onChange={(e) => handleFormChange('link', e)} />
+            </label>
+            <button type="submit" className={`${BTN_PRIMARY} w-fit px-6 py-2.5 text-sm`}>Link patient to user</button>
+          </form>
+        </>
       )}
 
       {tab === 'audit' && (
-      <>
-      <h3>Audit log <span className="hint">GET /api/v1/admin/audit-logs</span></h3>
-      <div>
-        {audit === null ? <p className="muted">Not shown yet.</p>
-          : audit.length === 0 ? <p className="muted">No audit entries yet.</p>
-          : audit.map((l, i) => {
-            const subject = l.target_email || (l.appointment_id ? `appointment #${l.appointment_id}` : '—');
-            return (
-              <div className="audit-row" key={i}>
-                {l.action}: {subject} {l.old_role || l.old_status || '—'} → {l.new_role || l.new_status || '—'}
-                {l.clinic_id ? ` @ clinic #${l.clinic_id}` : ''} (by {l.performed_by === null ? 'system' : `#${l.performed_by}`})
-              </div>
-            );
-          })}
-      </div>
-      </>
+        <>
+          <div className="mt-6 flex flex-wrap items-end justify-between gap-2">
+            <h3 className={SECTION_TITLE}>Audit log</h3>
+            <p className={EYEBROW}>GET /api/v1/admin/audit-logs</p>
+          </div>
+          <div className="mt-3">
+            {audit === null ? <p className="text-[0.85rem] font-medium text-[var(--color-ink-soft)]">Not shown yet.</p>
+              : audit.length === 0 ? <p className="text-[0.85rem] font-medium text-[var(--color-ink-soft)]">No audit entries yet.</p>
+              : (
+                <div className="flex flex-col divide-y divide-[var(--color-line)]">
+                  {audit.map((l, i) => {
+                    const subject = l.target_email || (l.appointment_id ? `appointment #${l.appointment_id}` : '-');
+                    return (
+                      <div className="py-2.5 text-[0.85rem] leading-[1.6] text-[var(--color-ink)]" key={i}>
+                        <span className="font-bold">{l.action}</span>: {subject} {l.old_role || l.old_status || '-'} → {l.new_role || l.new_status || '-'}
+                        {l.clinic_id ? ` @ clinic #${l.clinic_id}` : ''} <span className="text-[var(--color-ink-soft)]">(by {l.performed_by === null ? 'system' : `#${l.performed_by}`})</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+          </div>
+        </>
       )}
 
       {tab === 'appointments' && (
-      <>
-      <h3>All appointments <span className="hint">GET /api/v1/appointments/ (admin sees all)</span></h3>
-      <div className="row">
-        <StatusFilter id="admin-appt-status" value={queueStatus} onChange={(value) => updateFilter('queueStatus', value)} />
-        <button type="button" style={{ alignSelf: 'flex-end' }} onClick={loadQueue}>Show appointments</button>
-      </div>
-      <p className="hint">approve: PATCH /api/v1/appointments/:id/approve · reject: PATCH /api/v1/appointments/:id/reject · cancel: PATCH /api/v1/appointments/:id/cancel</p>
-      <div>{queue === null ? <p className="muted">Not shown yet.</p> : <AppointmentList appointments={queue} emptyText="No appointments yet." onDecide={decide} onCancel={cancel} />}</div>
-      </>
+        <>
+          <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h3 className={SECTION_TITLE}>All appointments</h3>
+              <p className={`${EYEBROW} mt-1.5`}>GET /api/v1/appointments/ · admin sees all</p>
+            </div>
+            <div className="flex flex-wrap items-end gap-2">
+              <StatusFilter id="admin-appt-status" value={queueStatus} onChange={(value) => updateFilter('queueStatus', value)} />
+              <button type="button" className={`${BTN_SECONDARY} px-4 py-2 text-xs`} onClick={loadQueue}>Show appointments</button>
+            </div>
+          </div>
+          <p className="mt-2 text-[0.76rem] leading-[1.6] text-[var(--color-ink-soft)]">approve: PATCH /api/v1/appointments/:id/approve · reject: PATCH /api/v1/appointments/:id/reject · cancel: PATCH /api/v1/appointments/:id/cancel</p>
+          <div className="mt-3">{queue === null ? <p className="text-[0.85rem] font-medium text-[var(--color-ink-soft)]">Not shown yet.</p> : <AppointmentList appointments={queue} emptyText="No appointments yet." onDecide={decide} onCancel={cancel} />}</div>
+        </>
       )}
       <ConfirmDialog
         open={Boolean(confirm)}
@@ -521,24 +613,36 @@ export function AdminPanel() {
 
 function UserRows({ users, onSuspend, onReinstate, onOffboard }) {
   return (
-    <>
-      {users.map((u) => (
-        <div className="user-row" key={u.id}>
-          <span className="who">#{u.id} {u.email}<br />{u.role} · {u.status || (u.is_active ? 'active' : 'inactive')}</span>
-          {u.status === 'active' && (
-            <button type="button" onClick={() => onSuspend(u.id)}>Suspend</button>
-          )}
-          {u.status === 'suspended' && (
-            <>
-              <button type="button" className="approve" onClick={() => onReinstate(u.id)}>Reinstate</button>
-              <button type="button" className="reject" onClick={() => onOffboard(u.id)}>Offboard</button>
-            </>
-          )}
-          {(u.status === 'active' || u.status === 'pending_verification') && (
-            <button type="button" className="remove" onClick={() => onOffboard(u.id)}>Offboard</button>
-          )}
-        </div>
-      ))}
-    </>
+    <div className="flex flex-col divide-y divide-[var(--color-line)]">
+      {users.map((u) => {
+        const state = u.status || (u.is_active ? 'active' : 'inactive');
+        return (
+          <div className="flex flex-wrap items-center gap-3 py-3.5 text-sm" key={u.id}>
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-white bg-[var(--color-sand)] font-display text-[0.8rem] font-bold text-[var(--color-ink)] shadow-[var(--shadow-sm)]">
+              {(u.email || '?').slice(0, 1).toUpperCase()}
+            </span>
+            <span className="min-w-0 flex-1 leading-[1.6] text-[var(--color-ink)]">
+              <span className="font-bold">#{u.id}</span> {u.email}<br />
+              <span className="text-[0.8rem] text-[var(--color-ink-soft)]">{u.role}</span>{' '}
+              <span className={statusPill(state)}>{state}</span>
+            </span>
+            <span className="flex flex-wrap gap-2">
+              {u.status === 'active' && (
+                <button type="button" className={`${BTN_DANGER} px-3.5 py-1.5 text-xs`} onClick={() => onSuspend(u.id)}>Suspend</button>
+              )}
+              {u.status === 'suspended' && (
+                <>
+                  <button type="button" className={`${BTN_SUCCESS_INK} px-3.5 py-1.5 text-xs`} onClick={() => onReinstate(u.id)}>Reinstate</button>
+                  <button type="button" className={`${BTN_DANGER} px-3.5 py-1.5 text-xs`} onClick={() => onOffboard(u.id)}>Offboard</button>
+                </>
+              )}
+              {(u.status === 'active' || u.status === 'pending_verification') && (
+                <button type="button" className={`${BTN_DANGER} px-3.5 py-1.5 text-xs`} onClick={() => onOffboard(u.id)}>Offboard</button>
+              )}
+            </span>
+          </div>
+        );
+      })}
+    </div>
   );
 }
