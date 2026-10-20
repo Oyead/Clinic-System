@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { toDayKey, startOfMonth, monthLabel, buildMonthCells } from './calendarUtils.js';
+import { BTN_GHOST } from './ui.js';
 
 const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
@@ -16,19 +17,23 @@ export function DatePickerCalendar({ value, onChange, minDate }) {
   };
 
   return (
-    <div className="mini-cal-wrap">
-      <div className="mini-cal-toolbar">
-        <button type="button" className="cal-nav-btn mini" onClick={() => go(-1)} aria-label="Previous month">‹</button>
-        <strong className="mini-cal-month">{monthLabel(cursor)}</strong>
-        <button type="button" className="cal-nav-btn mini" onClick={() => go(1)} aria-label="Next month">›</button>
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-2">
+        <button type="button" className={`${BTN_GHOST} h-8 w-8 p-0 text-lg leading-none`} onClick={() => go(-1)} aria-label="Previous month">
+          ‹
+        </button>
+        <strong className="text-center font-display text-[0.98rem] font-bold tracking-[-0.02em] text-[var(--color-ink)]">{monthLabel(cursor)}</strong>
+        <button type="button" className={`${BTN_GHOST} h-8 w-8 p-0 text-lg leading-none`} onClick={() => go(1)} aria-label="Next month">
+          ›
+        </button>
       </div>
-
-      <div className="mini-cal-grid" role="grid" aria-label={`Pick a day in ${monthLabel(cursor)}`}>
+      <div className="grid grid-cols-7 gap-1" role="grid" aria-label={`Pick a day in ${monthLabel(cursor)}`}>
         {WEEKDAYS.map((w, i) => (
-          <div key={`${w}-${i}`} className="mini-cal-weekday">{w}</div>
+          <div key={`${w}-${i}`} className="py-0.5 text-center font-display text-[0.6rem] font-bold uppercase tracking-[0.08em] text-[var(--color-ink-soft)]">{w}</div>
         ))}
         {cells.map((cell) => {
           const isPast = cell.key < minKey;
+          const selected = cell.key === value;
           return (
             <button
               key={cell.key}
@@ -37,11 +42,11 @@ export function DatePickerCalendar({ value, onChange, minDate }) {
               disabled={isPast}
               onClick={() => onChange(cell.key)}
               className={[
-                'mini-cal-day',
-                cell.inMonth ? '' : 'out',
-                cell.key === todayKey ? 'today' : '',
-                isPast ? 'past' : '',
-                cell.key === value ? 'selected' : '',
+                'flex h-9 cursor-pointer items-center justify-center rounded-full text-[0.8rem] font-bold text-[var(--color-ink)] transition-colors',
+                !cell.inMonth ? 'opacity-30' : '',
+                isPast ? 'cursor-default opacity-35' : 'hover:bg-[var(--color-sand)]',
+                cell.key === todayKey && !selected ? 'bg-white shadow-[var(--shadow-sm)]' : '',
+                selected ? 'bg-[var(--color-ink)] text-white shadow-[var(--shadow-sm)]' : '',
               ].join(' ').trim()}
               title={isPast ? 'Past dates cannot be booked' : 'Pick this day'}
             >
