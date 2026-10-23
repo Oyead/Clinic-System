@@ -116,6 +116,25 @@ const getAppointmentById = async (id) => {
   return result.rows[0];
 };
 
+const getAppointmentNotificationById = async (id) => {
+  const query = `
+    SELECT a.id, a.appointment_date, a.duration_minutes, a.status, a.reason,
+           p.name AS patient_name,
+           COALESCE(NULLIF(TRIM(p.email), ''), u.email) AS patient_email,
+           d.name AS doctor_name, d.specialization,
+           c.name AS clinic_name, c.address AS clinic_address,
+           c.phone_number AS clinic_phone, c.email AS clinic_email
+    FROM appointments a
+    JOIN patients p ON p.id = a.patient_id
+    LEFT JOIN users u ON u.id = p.user_id
+    JOIN doctors d ON d.id = a.doctor_id
+    JOIN clinics c ON c.id = a.clinic_id
+    WHERE a.id = $1;
+  `;
+  const result = await db.query(query, [id]);
+  return result.rows[0];
+};
+
 const updateAppointmentStatus = async (id, status, client = db) => {
   const query = `
     UPDATE appointments
@@ -270,6 +289,7 @@ module.exports = {
   isWithinOperatingHours,
   createAppointment,
   getAppointmentById,
+  getAppointmentNotificationById,
   updateAppointmentStatus,
   listAppointmentsByPatientId,
   listAppointmentsByDoctorId,

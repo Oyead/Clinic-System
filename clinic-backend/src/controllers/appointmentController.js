@@ -5,6 +5,7 @@ const ownerModel = require('../models/ownerModel');
 const db = require('../config/db');
 const { normalizeRole } = require('../utils/roles');
 const { parseDateRange } = require('../utils/range');
+const { sendAppointmentDecisionEmail } = require('../utils/appointmentEmail');
 
 const VALID_STATUSES = ['scheduled', 'completed', 'cancelled', 'no_show', 'pending'];
 
@@ -265,6 +266,7 @@ const approveAppointment = async (req, res) => {
       }, client);
       return row;
     });
+    void sendAppointmentDecisionEmail(updated.id, 'approve');
     res.status(200).json({ message: 'Appointment approved', appointment: updated });
   } catch (error) {
     if (error.code === '22P02') {
@@ -306,6 +308,7 @@ const rejectAppointment = async (req, res) => {
       }
       return row;
     });
+    void sendAppointmentDecisionEmail(updated.id, 'reject');
     res.status(200).json({ message: 'Appointment rejected', appointment: updated });
   } catch (error) {
     if (error.code === '22P02') {

@@ -11,6 +11,7 @@ const {
   INVITE_TTL_DAYS,
 } = require('../utils/invites');
 const { parseDateRange } = require('../utils/range');
+const { sendAppointmentDecisionEmail } = require('../utils/appointmentEmail');
 
 const normalizeEmail = (email) =>
   typeof email === 'string' ? email.trim().toLowerCase() : email;
@@ -395,6 +396,8 @@ const decideAppointment = (decision) => async (req, res) => {
       }
       return row;
     });
+
+    void sendAppointmentDecisionEmail(updated.id, decision);
 
     res.status(200).json({
       message: decision === 'approve' ? 'Appointment approved' : 'Appointment rejected',
