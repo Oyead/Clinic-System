@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, readError } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Notice, useNotice } from './Notice.jsx';
-import { StatusFilter } from './Appointments.jsx';
 import { ActiveCalendar } from './ActiveCalendar.jsx';
 import { AvailabilityManager } from './AvailabilityManager.jsx';
 import { PanelTabs, usePersistentTab } from './Tabs.jsx';
@@ -18,18 +17,17 @@ export function StaffPanel() {
   const { token } = useAuth();
   const [notice, notify, dismissNotice] = useNotice();
   const [tab, setTab] = usePersistentTab('clinic.tab.staff', 'calendar', STAFF_TABS.map((t) => t.id));
-  const [status, setStatus] = useState('');
   const [refreshToken, setRefreshToken] = useState(0);
   const [options, setOptions] = useState(null);
 
   const loadRange = useCallback(async ({ from, to }) => {
-    const res = await api.appointments(token, status, { from, to });
+    const res = await api.appointments(token, '', { from, to });
     if (!res.ok) {
       throw new Error(await readError(res, 'Loading this month failed.'));
     }
     const data = await res.json();
     return data.appointments || [];
-  }, [token, status]);
+  }, [token]);
 
   const decide = async (id, decision) => {
     try {
@@ -94,13 +92,10 @@ export function StaffPanel() {
         <>
           <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
             <h3 className={SECTION_TITLE}>Active calendar</h3>
-            <div className="flex flex-wrap items-end gap-2">
-              <StatusFilter id="staff-status" value={status} onChange={setStatus} />
-              <button type="button" className={`${BTN_SECONDARY} px-4 py-2 text-xs`} onClick={() => setRefreshToken((n) => n + 1)}>Refresh month</button>
-            </div>
+            <button type="button" className={`${BTN_SECONDARY} px-4 py-2 text-xs`} onClick={() => setRefreshToken((n) => n + 1)}>Refresh month</button>
           </div>
           <div className="mt-4 rounded-[20px] bg-[var(--color-sand)] p-3 sm:p-4">
-            <ActiveCalendar loadRange={loadRange} reloadKey={`${status}|${refreshToken}`} onDecide={decide} onCancel={cancel} />
+            <ActiveCalendar loadRange={loadRange} reloadKey={`${refreshToken}`} onDecide={decide} onCancel={cancel} />
           </div>
         </>
       )}

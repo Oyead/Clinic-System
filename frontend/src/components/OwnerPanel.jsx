@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { Notice, useNotice } from './Notice.jsx';
 import { ConfirmDialog } from './ConfirmDialog.jsx';
 import { TokenReveal } from './SecretField.jsx';
-import { StatusFilter } from './Appointments.jsx';
 import { ActiveCalendar } from './ActiveCalendar.jsx';
 import { AvailabilityManager } from './AvailabilityManager.jsx';
 import { PanelTabs, usePersistentTab } from './Tabs.jsx';
@@ -24,7 +23,6 @@ export function OwnerPanel() {
   const [clinicId, setClinicId] = useState('');
   const [staff, setStaff] = useState(null);
   const [invites, setInvites] = useState(null);
-  const [status, setStatus] = useState('');
   const [refreshToken, setRefreshToken] = useState(0);
   const [inviteForm, setInviteForm] = useState({ email: '', role: 'doctor', name: '', specialization: '' });
   const [lastToken, setLastToken] = useState('');
@@ -92,13 +90,13 @@ export function OwnerPanel() {
 
   const loadRange = useCallback(async ({ from, to }) => {
     if (!clinicId) return [];
-    const res = await api.ownerAppointments(token, clinicId, status, { from, to });
+    const res = await api.ownerAppointments(token, clinicId, '', { from, to });
     if (!res.ok) {
       throw new Error(await readError(res, 'Loading this month failed.'));
     }
     const data = await res.json();
     return data.appointments || [];
-  }, [token, clinicId, status]);
+  }, [token, clinicId]);
 
   const loadClinics = useCallback(async () => {
     try {
@@ -466,11 +464,10 @@ export function OwnerPanel() {
         <>
           <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
             <h3 className={SECTION_TITLE}>Active calendar</h3>
-            <StatusFilter id="owner-status" value={status} onChange={setStatus} />
           </div>
           <div className="mt-4 rounded-[20px] bg-[var(--color-sand)] p-3 sm:p-4">
             {!clinicId ? <p className="text-[0.85rem] font-medium text-[var(--color-ink-soft)]">Not shown yet.</p>
-              : <ActiveCalendar loadRange={loadRange} reloadKey={`${clinicId}|${status}|${refreshToken}`} onDecide={decide} onCancel={cancel} />}
+              : <ActiveCalendar loadRange={loadRange} reloadKey={`${clinicId}|${refreshToken}`} onDecide={decide} onCancel={cancel} />}
           </div>
         </>
       )}
