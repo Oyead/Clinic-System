@@ -58,12 +58,9 @@ Book visits in seconds. Show up, earn credits, unlock perks. Credits never affec
           </p>
           <div className="flex flex-wrap items-center gap-3">
             <button type="button" className={`${BTN_PRIMARY} px-6 py-3.5 text-sm`} onClick={onGetStarted}>
-              Start earning
+              Start now
               <IconArrowRight className="h-4 w-4" />
             </button>
-            <a className={`${BTN_SECONDARY} px-6 py-3.5 text-sm`} href="#how-it-plays">
-              How it plays
-            </a>
           </div>
           <dl className="mt-1 grid grid-cols-3 gap-3 border-t border-[var(--color-line)] pt-6 sm:gap-4">
             <div className="flex flex-col-reverse gap-0.5">
@@ -91,9 +88,6 @@ Book visits in seconds. Show up, earn credits, unlock perks. Credits never affec
                   Every open slot is a full 45-minute visit - no rushed appointments.
                 </p>
               </div>
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--color-ink)] text-white">
-                <IconStar className="h-5 w-5" />
-              </span>
             </div>
           </div>
 

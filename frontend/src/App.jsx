@@ -147,7 +147,7 @@ function Shell() {
           eyebrow="Welcome back"
           title="Sign in"
           form={<SigninForm onSignedIn={afterAuth} />}
-          switchTo={{ href: `#${ROUTES.SIGNUP}`, text: "New here? Create a patient account" }}
+          switchTo={{ href: `#${ROUTES.SIGNUP}`, text: "New here? Join now!" }}
         />
       ) : path === ROUTES.PRIVACY ? (
         <LegalPage doc="privacy" />
