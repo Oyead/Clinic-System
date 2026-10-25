@@ -5,7 +5,7 @@
 #
 # Usage: BASE=http://localhost:5001 bash scripts/verify-roles.sh
 # Requires: backend running + migrations applied.
-B=${BASE:-http://localhost:5001}
+B=${BASE:-http://localhost:5000}
 ADMIN_EMAIL=${ADMIN_EMAIL:-admin@clinic.local}
 ADMIN_PASSWORD=${ADMIN_PASSWORD:-PickAStrongPassword123!}
 R=$RANDOM
@@ -41,6 +41,8 @@ DT=$(curl -s -m 10 -X POST $B/api/v1/auth/login -H 'Content-Type: application/js
 RT=$(curl -s -m 10 -X POST $B/api/v1/auth/login -H 'Content-Type: application/json' -d '{"email":"vrec'$R'@ex.com","password":"password123"}' | jq 'j.token')
 DID=$(curl -s -m 10 $B/api/v1/owner/clinics/$CID/staff -H "Authorization: Bearer $OT" | jq 'j.staff.find(s=>s.user_id==='$DUID').doctor_id')
 [ "$DT" != "UNDEF" ] && [ "$RT" != "UNDEF" ] && pass "doctor + receptionist active" || fail "staff login" ""
+FEE=$(curl -s -m 10 -X PATCH $B/api/v1/owner/clinics/$CID/doctors/$DID/fee -H "Authorization: Bearer $OT" -H 'Content-Type: application/json' -d '{"consultation_fee":250}')
+[ "$(echo "$FEE" | jq 'Number(j.doctor.consultation_fee)')" == "250" ] && pass "owner sets consultation fee" || fail "owner fee" "$FEE"
 
 echo "== PATIENT =="
 P=$(curl -s -m 10 -X POST $B/api/v1/auth/signup -H 'Content-Type: application/json' -d '{"email":"vpat'$R'@ex.com","password":"password123","name":"Verify Pat"}')
@@ -73,7 +75,16 @@ curl -s -m 10 -X POST $B/api/v1/auth/accept-invite -H 'Content-Type: application
 [ "$(code $B/api/v1/owner/clinics/$CID/invites -H "Authorization: Bearer $OT")" == "200" ] && pass "owner lists invites" || fail "owner invites list" "$(cat /tmp/verify-body.json)"
 [ "$(code -X POST $B/api/v1/owner/clinics/$CID/staff/invite -H "Authorization: Bearer $OT" -H 'Content-Type: application/json' -d '{"email":"bad'$R'@ex.com","role":"admin","name":"Bad"}')" == "403" ] && pass "owner cannot invite admin (matrix)" || fail "owner matrix" "$(cat /tmp/verify-body.json)"
 if [ -n "$APPT1" ]; then
-  [ "$(code -X PATCH $B/api/v1/owner/appointments/$APPT1/approve -H "Authorization: Bearer $OT")" == "200" ] && pass "owner approves request" || fail "owner approve" "$(cat /tmp/verify-body.json)"
+  APPR=$(curl -s -m 10 -X PATCH $B/api/v1/owner/appointments/$APPT1/approve -H "Authorization: Bearer $OT")
+  [ "$(echo "$APPR" | jq 'j.appointment.status')" == "awaiting_payment" ] && pass "owner approves into awaiting_payment" || fail "owner approve" "$APPR"
+  [ "$(code $B/api/v1/payments/config -H "Authorization: Bearer $PT")" == "200" ] && pass "patient reads payment config" || fail "payment config" "$(cat /tmp/verify-body.json)"
+  [ "$(code $B/api/v1/payments/appointments/$APPT1 -H "Authorization: Bearer $DT")" == "403" ] && pass "doctor cannot read patient payment" || fail "doctor payment gate" "$(cat /tmp/verify-body.json)"
+  PAY=$(curl -s -m 10 $B/api/v1/payments/appointments/$APPT1 -H "Authorization: Bearer $PT")
+  [ "$(echo "$PAY" | jq 'j.payment_status')" == "pending" ] && pass "patient sees pending payment" || fail "patient payment status" "$PAY"
+  [ "$(code -X POST $B/api/v1/payments/appointments/$APPT1/intention -H "Authorization: Bearer $PT" -H 'Content-Type: application/json' -d '{}')" == "400" ] && pass "intention requires phone when missing" || fail "intention phone" "$(cat /tmp/verify-body.json)"
+  INT_CODE=$(code -X POST $B/api/v1/payments/appointments/$APPT1/intention -H "Authorization: Bearer $PT" -H 'Content-Type: application/json' -d '{"phone_number":"+201000000000"}')
+  if [ "$INT_CODE" == "201" ] || [ "$INT_CODE" == "503" ]; then pass "patient can start payment ($INT_CODE)"; else fail "patient intention" "$(cat /tmp/verify-body.json)"; fi
+  [ "$(code -X POST $B/api/v1/payments/paymob/webhook -H 'Content-Type: application/json' -d '{}')" == "400" ] && pass "unsigned Paymob webhook rejected" || fail "webhook hmac" "$(cat /tmp/verify-body.json)"
 else skip "owner approve (no appointment created)"; fi
 [ "$(code -X POST $B/api/v1/owner/clinics/$CID/staff/$EXUID/suspend -H "Authorization: Bearer $OT")" == "200" ] && pass "owner suspends staff" || fail "owner suspend" "$(cat /tmp/verify-body.json)"
 [ "$(code -X POST $B/api/v1/owner/clinics/$CID/staff/$EXUID/offboard -H "Authorization: Bearer $OT")" == "200" ] && pass "owner offboards (confirmed departure)" || fail "owner offboard" "$(cat /tmp/verify-body.json)"

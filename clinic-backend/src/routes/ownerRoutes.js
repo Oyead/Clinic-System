@@ -14,6 +14,7 @@ router.delete('/clinics/:clinicId/invites/:inviteId', requireClinicScope, ownerC
 router.post('/clinics/:clinicId/staff/:userId/offboard', requireClinicScope, ownerController.offboardStaff);
 router.post('/clinics/:clinicId/staff/:userId/suspend', requireClinicScope, ownerController.suspendStaff);
 router.delete('/clinics/:clinicId/staff/:userId', requireClinicScope, ownerController.removeStaff);
+router.patch('/clinics/:clinicId/doctors/:doctorId/fee', requireClinicScope, ownerController.setDoctorFee);
 router.get('/clinics/:clinicId/appointments', requireClinicScope, ownerController.listQueue);
 router.patch('/appointments/:apptId/approve', ownerController.decideAppointment('approve'));
 router.patch('/appointments/:apptId/reject', ownerController.decideAppointment('reject'));

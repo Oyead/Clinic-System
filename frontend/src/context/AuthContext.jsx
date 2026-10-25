@@ -86,8 +86,8 @@ export function AuthProvider({ children }) {
   );
 
   const signup = useCallback(
-    async ({ email, password, name }) => {
-      const res = await api.signup({ email, password, name });
+    async ({ email, password, name, phone_number }) => {
+      const res = await api.signup({ email, password, name, phone_number });
       if (res.status === 201) {
         const data = await res.json().catch(() => null);
         if (data && data.token && data.user) {

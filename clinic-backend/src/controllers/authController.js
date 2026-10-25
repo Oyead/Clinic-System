@@ -65,6 +65,7 @@ const signup = async (req, res) => {
   try {
     const email = normalizeEmail(req.body.email);
     const { password, name } = req.body;
+    const phoneNumber = typeof req.body.phone_number === 'string' ? req.body.phone_number.trim() : '';
 
     if (!email || !password) {
       return res.status(400).json({ error: 'email and password are required.' });
@@ -81,7 +82,7 @@ const signup = async (req, res) => {
         );
         if (name) {
           await adminModel.createPatient(
-            { user_id: user.id, name, phone_number: null, email },
+            { user_id: user.id, name, phone_number: phoneNumber || null, email },
             client
           );
         }
@@ -154,7 +155,7 @@ const signupClinic = async (req, res) => {
           },
           client
         );
-        await ownerModel_.assignOwner(user.id, row.id, client);
+        await ownerModel.assignOwner(user.id, row.id, client);
         await client.query(`UPDATE users SET clinic_id = $1 WHERE id = $2;`, [row.id, user.id]);
         user.clinic_id = row.id;
         await adminModel.createAuditLog({
@@ -182,6 +183,31 @@ const signupClinic = async (req, res) => {
       }
       throw error;
     }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const updateProfile = async (req, res) => {
+  try {
+    if (req.user.role !== 'patient') {
+      return res.status(403).json({ error: 'Only patients can update this profile.' });
+    }
+    const phoneNumber = typeof req.body.phone_number === 'string' ? req.body.phone_number.trim() : '';
+    if (!/^[+0-9 ()-]{7,50}$/.test(phoneNumber)) {
+      return res.status(400).json({ error: 'Enter a valid phone number.' });
+    }
+    const result = await db.query(
+      `UPDATE patients
+       SET phone_number = $1
+       WHERE user_id = $2
+       RETURNING id, phone_number;`,
+      [phoneNumber, req.user.id]
+    );
+    if (!result.rows[0]) {
+      return res.status(404).json({ error: 'Patient profile not found.' });
+    }
+    res.status(200).json({ message: 'Phone number updated.', patient: result.rows[0] });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -351,4 +377,4 @@ const signout = async (req, res) => {
   }
 };
 
-module.exports = { signup, signupClinic, login, acceptInvite, refresh, signout };
+module.exports = { signup, signupClinic, login, acceptInvite, refresh, signout, updateProfile };

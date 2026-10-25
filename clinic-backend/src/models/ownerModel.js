@@ -51,7 +51,7 @@ const removeAllOwnerClinics = async (userId, client = db) => {
 const listClinicStaff = async (clinicId, client = db) => {
   const result = await client.query(
     `SELECT u.id AS user_id, u.email, u.role, u.status, u.clinic_id, u.is_active,
-            d.id AS doctor_id, d.specialization,
+            d.id AS doctor_id, d.specialization, d.consultation_fee,
             r.id AS receptionist_id
      FROM users u
      LEFT JOIN doctors d ON d.user_id = u.id AND d.clinic_id = $1

@@ -4,7 +4,7 @@ import { BTN_INK, BTN_GHOST, statusPill } from './ui.js';
 
 const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
-export function PatientMiniCalendar({ loadRange, reloadKey, onCancel }) {
+export function PatientMiniCalendar({ loadRange, reloadKey, onCancel, onPay }) {
   const [cursor, setCursor] = useState(() => startOfMonth(new Date()));
   const [selectedKey, setSelectedKey] = useState(null);
   const [monthAppointments, setMonthAppointments] = useState([]);
@@ -160,7 +160,17 @@ export function PatientMiniCalendar({ loadRange, reloadKey, onCancel }) {
                   <br />
                   <span className={statusPill(a.status)}>{a.status.replaceAll('_', ' ')}</span>
                   {a.reason ? <span className="text-[0.8rem] text-[var(--color-ink-soft)]"> · {a.reason}</span> : ''}
+                  {a.status === 'awaiting_payment' && a.amount_due_cents ? (
+                    <span className="block text-[0.78rem] font-medium text-[#8d6717]">
+                      Pay EGP {(Number(a.amount_due_cents) / 100).toFixed(2)} to confirm
+                    </span>
+                  ) : ''}
                 </span>
+                {a.status === 'awaiting_payment' && onPay && (
+                  <button type="button" className={`${BTN_INK} w-full px-3.5 py-1.5 text-xs sm:w-auto`} onClick={() => onPay(a)}>
+                    Pay now
+                  </button>
+                )}
                 {onCancel && (
                   <button type="button" disabled={a.status === 'cancelled'} className={`${BTN_INK} w-full px-3.5 py-1.5 text-xs sm:w-auto`} onClick={() => onCancel(a.id)}>
                     Cancel

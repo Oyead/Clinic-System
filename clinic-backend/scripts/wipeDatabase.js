@@ -5,6 +5,7 @@ const db = require('../src/config/db');
 const CHILD_TABLES = [
   'patient_records',
   'bill_items',
+  'payment_transactions',
   'appointments',
   'bills',
   'operating_hours',

@@ -5,6 +5,7 @@ import { Notice, useNotice } from './Notice.jsx';
 import { PanelTabs, usePersistentTab } from './Tabs.jsx';
 import { PatientMiniCalendar } from './PatientMiniCalendar.jsx';
 import { SlotPickerCalendar } from './SlotPickerCalendar.jsx';
+import { PaymentDialog } from './PaymentDialog.jsx';
 import { FORM_INPUT, BTN_PRIMARY, BTN_SECONDARY, EYEBROW, SECTION_TITLE } from './ui.js';
 
 const PATIENT_TABS = [
@@ -20,6 +21,7 @@ export function PatientPanel() {
   const [clinics, setClinics] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [booking, setBooking] = useState({ clinic_id: '', doctor_id: '', slot: null, reason: '' });
+  const [paying, setPaying] = useState(null);
 
   const loadRange = useCallback(async ({ from, to }) => {
     const res = await api.myAppointments(token, { from, to });
@@ -49,6 +51,50 @@ export function PatientPanel() {
     loadOptions();
   }, [loadOptions]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('payment') !== 'return') return undefined;
+    const id = localStorage.getItem('clinic_pending_payment_appt');
+    window.history.replaceState({}, '', `${window.location.pathname}${window.location.hash}`);
+    if (!id) return undefined;
+
+    let cancelled = false;
+    let timer = null;
+    let tries = 0;
+    const poll = async () => {
+      tries += 1;
+      try {
+        const res = await api.appointmentPayment(token, id);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.payment_status === 'paid') {
+            localStorage.removeItem('clinic_pending_payment_appt');
+            if (!cancelled) {
+              notify('Payment received. Your appointment is confirmed.', 'success');
+              setRefreshToken((n) => n + 1);
+              setTab('appointments');
+            }
+            return;
+          }
+        }
+      } catch (_) {
+      }
+      if (tries < 15 && !cancelled) {
+        timer = setTimeout(poll, 2000);
+      } else if (!cancelled) {
+        localStorage.removeItem('clinic_pending_payment_appt');
+        notify('Payment is still processing. Refresh the month in a moment.', 'error');
+        setRefreshToken((n) => n + 1);
+      }
+    };
+    notify('Payment submitted. Confirming with Paymob…', 'success');
+    poll();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [token, notify, setTab]);
+
   const doctorOptions = useMemo(
     () => doctors.filter((d) => String(d.clinic_id) === String(booking.clinic_id)),
     [doctors, booking.clinic_id],
@@ -74,6 +120,9 @@ export function PatientPanel() {
     }
   };
 
+  const selectedDoctor = doctorOptions.find((d) => String(d.id) === String(booking.doctor_id));
+  const selectedFee = Number(selectedDoctor?.consultation_fee) || 0;
+
   const submit = async (e) => {
     e.preventDefault();
     if (!booking.clinic_id || !booking.doctor_id || !booking.slot) {
@@ -86,7 +135,12 @@ export function PatientPanel() {
         ...(booking.reason.trim() ? { reason: booking.reason.trim() } : {}),
       });
       if (res.status === 201) {
-        notify('Appointment requested. It becomes active once the clinic approves it.', 'success');
+        notify(
+          selectedFee > 0
+            ? `Appointment requested. After clinic approval, pay EGP ${selectedFee.toFixed(2)} to confirm your slot.`
+            : 'Appointment requested. It becomes active once the clinic approves it.',
+          'success',
+        );
         setBooking((b) => ({ ...b, slot: null, reason: '' }));
         setRefreshToken((n) => n + 1);
         setTab('appointments');
@@ -120,7 +174,12 @@ export function PatientPanel() {
             <button type="button" className={`${BTN_SECONDARY} px-4 py-2 text-xs`} onClick={() => setRefreshToken((n) => n + 1)}>Refresh month</button>
           </div>
           <div className="mt-4 rounded-[20px] bg-[var(--color-sand)] p-3 sm:p-4">
-            <PatientMiniCalendar loadRange={loadRange} reloadKey={`${refreshToken}`} onCancel={cancel} />
+            <PatientMiniCalendar
+              loadRange={loadRange}
+              reloadKey={`${refreshToken}`}
+              onCancel={cancel}
+              onPay={(appointment) => setPaying(appointment)}
+            />
           </div>
         </>
       )}
@@ -141,6 +200,14 @@ export function PatientPanel() {
                 {doctorOptions.map((d) => <option key={d.id} value={d.id}>{d.name} ({d.specialization || ''})</option>)}
               </select>
             </div>
+            {selectedDoctor && (
+              <p className="rounded-[16px] bg-[var(--color-sand)] px-4 py-3 text-[0.8rem] leading-[1.6] text-[var(--color-ink-soft)] sm:col-span-2">
+                Consultation fee: <strong className="text-[var(--color-ink)]">EGP {selectedFee.toFixed(2)}</strong>
+                {selectedFee > 0
+                  ? ' — payable online after the clinic approves your request.'
+                  : ' — no online payment required.'}
+              </p>
+            )}
             <div className="flex flex-col gap-2 sm:col-span-2">
               <label className="text-[0.8rem] font-bold text-[var(--color-ink)]">Open 45-minute slots - pick a dotted day, then a time</label>
               <div className="rounded-[20px] bg-[var(--color-sand)] p-3 sm:p-4">
@@ -170,6 +237,18 @@ export function PatientPanel() {
             <button type="submit" className={`${BTN_PRIMARY} w-fit px-8 py-3 text-sm sm:col-span-2`}>Request appointment</button>
           </form>
         </>
+      )}
+      {paying && (
+        <PaymentDialog
+          token={token}
+          appointment={paying}
+          onClose={() => setPaying(null)}
+          onPaid={() => {
+            setPaying(null);
+            setRefreshToken((n) => n + 1);
+          }}
+          notify={notify}
+        />
       )}
     </section>
   );

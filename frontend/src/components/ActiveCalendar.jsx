@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { toDayKey, startOfMonth, startOfDay, monthLabel, formatTime, buildMonthCells } from './calendarUtils.js';
 import { SURFACE, MODAL_BACKDROP, BTN_GHOST, BTN_SUCCESS, BTN_DANGER, BTN_INK, statusPill } from './ui.js';
 
-const ACTIVE_STATUSES = ['pending', 'scheduled'];
+const ACTIVE_STATUSES = ['pending', 'scheduled', 'awaiting_payment'];
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export function ActiveCalendar({ loadRange, reloadKey, onDecide, onCancel }) {
@@ -91,6 +91,7 @@ export function ActiveCalendar({ loadRange, reloadKey, onDecide, onCancel }) {
   const totalActive = active.length;
   const pendingCount = active.filter((a) => a.status === 'pending').length;
   const scheduledCount = active.filter((a) => a.status === 'scheduled').length;
+  const awaitingCount = active.filter((a) => a.status === 'awaiting_payment').length;
 
   const go = (delta) => {
     setSelectedKey(null);
@@ -124,6 +125,7 @@ export function ActiveCalendar({ loadRange, reloadKey, onDecide, onCancel }) {
                 <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[var(--color-ink)]" />{totalActive} active</span>
                 <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[var(--color-amber-dark)]" />{pendingCount} pending</span>
                 <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[var(--color-mint-dark)]" />{scheduledCount} scheduled</span>
+                {awaitingCount > 0 && <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#b07a10]" />{awaitingCount} awaiting payment</span>}
               </>
             )}
         </div>
@@ -176,7 +178,7 @@ export function ActiveCalendar({ loadRange, reloadKey, onDecide, onCancel }) {
                   <span className="hidden w-full flex-col gap-1 sm:flex">
                     {list.slice(0, 2).map((a) => (
                       <span key={a.id} className="flex w-full items-center gap-1 overflow-hidden rounded-full bg-[var(--color-sand)] px-2 py-0.5 text-[0.68rem] leading-[1.4] text-[var(--color-ink)]">
-                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${a.status === 'pending' ? 'bg-[var(--color-amber-dark)]' : 'bg-[var(--color-mint-dark)]'}`} />
+                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${a.status === 'pending' ? 'bg-[var(--color-amber-dark)]' : a.status === 'awaiting_payment' ? 'bg-[#b07a10]' : 'bg-[var(--color-mint-dark)]'}`} />
                         <span className="truncate"><b>{formatTime(a.appointment_date)}</b> {a.patient_name || `#${a.id}`}</span>
                       </span>
                     ))}
@@ -186,7 +188,7 @@ export function ActiveCalendar({ loadRange, reloadKey, onDecide, onCancel }) {
                   </span>
                   <span className="mt-auto flex w-full justify-center gap-1 sm:hidden">
                     {list.slice(0, 3).map((a) => (
-                      <span key={a.id} className={`h-1.5 w-1.5 rounded-full ${a.status === 'pending' ? 'bg-[var(--color-amber-dark)]' : 'bg-[var(--color-mint-dark)]'}`} />
+                      <span key={a.id} className={`h-1.5 w-1.5 rounded-full ${a.status === 'pending' ? 'bg-[var(--color-amber-dark)]' : a.status === 'awaiting_payment' ? 'bg-[#b07a10]' : 'bg-[var(--color-mint-dark)]'}`} />
                     ))}
                   </span>
                 </>
@@ -244,7 +246,7 @@ export function ActiveCalendar({ loadRange, reloadKey, onDecide, onCancel }) {
                         </button>
                       </>
                     )}
-                    {(a.status === 'pending' || a.status === 'scheduled') && onCancel && (
+                    {(a.status === 'pending' || a.status === 'scheduled' || a.status === 'awaiting_payment') && onCancel && (
                       <button type="button" className={`${BTN_INK} flex-1 px-3.5 py-1.5 text-xs sm:flex-none`} onClick={() => onCancel(a.id)}>
                         Cancel
                       </button>

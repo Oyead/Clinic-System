@@ -34,6 +34,7 @@ const PILL_BASE = 'inline-flex items-center rounded-full px-2.5 py-0.5 text-[0.6
 
 const STATUS_PILLS = {
   pending: `${PILL_BASE} bg-[#8d6717]`,
+  awaiting_payment: `${PILL_BASE} bg-[#b07a10]`,
   scheduled: `${PILL_BASE} bg-[#2f7d58]`,
   approved: `${PILL_BASE} bg-[#2f7d58]`,
   active: `${PILL_BASE} bg-[#2f7d58]`,

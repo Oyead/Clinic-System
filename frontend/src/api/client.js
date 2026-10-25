@@ -71,10 +71,22 @@ async function request(path, { token, ...options } = {}, retried = false) {
 }
 
 export const api = {
-  signup: ({ email, password, name }) =>
+  signup: ({ email, password, name, phone_number }) =>
     request('/api/v1/auth/signup', {
       method: 'POST',
-      body: JSON.stringify({ email, password, ...(name ? { name } : {}) }),
+      body: JSON.stringify({
+        email,
+        password,
+        ...(name ? { name } : {}),
+        ...(phone_number ? { phone_number } : {}),
+      }),
+    }),
+
+  updatePhone: (token, phone_number) =>
+    request('/api/v1/auth/profile', {
+      token,
+      method: 'PATCH',
+      body: JSON.stringify({ phone_number }),
     }),
 
   signupClinic: ({ email, password, clinic }) =>
@@ -188,4 +200,23 @@ export const api = {
 
   ownerAppointments: (token, clinicId, status, range) =>
     request(`/api/v1/owner/clinics/${clinicId}/appointments${buildRangeQuery(status, range)}`, { token }),
+
+  ownerSetDoctorFee: (token, clinicId, doctorId, consultation_fee) =>
+    request(`/api/v1/owner/clinics/${clinicId}/doctors/${doctorId}/fee`, {
+      token,
+      method: 'PATCH',
+      body: JSON.stringify({ consultation_fee }),
+    }),
+
+  paymentConfig: (token) => request('/api/v1/payments/config', { token }),
+
+  appointmentPayment: (token, id) =>
+    request(`/api/v1/payments/appointments/${id}`, { token }),
+
+  createPaymentIntention: (token, id, body = {}) =>
+    request(`/api/v1/payments/appointments/${id}/intention`, {
+      token,
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 };

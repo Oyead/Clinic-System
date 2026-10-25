@@ -12,6 +12,7 @@ export function StatusFilter({ id, value, onChange }) {
       >
         <option value="">all statuses</option>
         <option value="pending">pending</option>
+        <option value="awaiting_payment">awaiting_payment</option>
         <option value="scheduled">scheduled</option>
         <option value="completed">completed</option>
         <option value="cancelled">cancelled</option>
@@ -46,7 +47,7 @@ export function AppointmentRow({ appointment, onDecide, onCancel }) {
             </button>
           </>
         )}
-        {(appointment.status === 'pending' || appointment.status === 'scheduled') && onCancel && (
+        {(appointment.status === 'pending' || appointment.status === 'scheduled' || appointment.status === 'awaiting_payment') && onCancel && (
           <button type="button" className={`${BTN_INK} px-3.5 py-1.5 text-xs`} onClick={() => onCancel(appointment.id)}>
             Cancel
           </button>

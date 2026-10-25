@@ -21,7 +21,7 @@ const NAV_LINKS = [
 function Backdrop() {
   return (
     <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 overflow-hidden bg-[linear-gradient(155deg,#f8f3eb_0%,#f3ebdd_46%,#eee3d1_100%)]">
-      <div className="absolute -right-[20%] top-[6%] h-[78vh] w-[78vh] rounded-[46%_54%_58%_42%/52%_44%_56%_48%] bg-[radial-gradient(circle_at_42%_42%,rgba(245,196,77,0.46),rgba(228,205,163,0.3)_54%,transparent_72%)] blur-[100px]" />
+      <div className="absolute right-[-20%] top-[6%] h-[78vh] w-[78vh] rounded-[46%_54%_58%_42%/52%_44%_56%_48%] bg-[radial-gradient(circle_at_42%_42%,rgba(245,196,77,0.46),rgba(228,205,163,0.3)_54%,transparent_72%)] blur-[100px]" />
     </div>
   );
 }

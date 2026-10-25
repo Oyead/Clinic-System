@@ -2,12 +2,14 @@ const appointmentModel = require('../models/appointmentModel');
 const availabilityModel = require('../models/availabilityModel');
 const adminModel = require('../models/adminModel');
 const ownerModel = require('../models/ownerModel');
+const paymentModel = require('../models/paymentModel');
 const db = require('../config/db');
 const { normalizeRole } = require('../utils/roles');
 const { parseDateRange } = require('../utils/range');
 const { sendAppointmentDecisionEmail } = require('../utils/appointmentEmail');
+const paymentService = require('../services/paymentService');
 
-const VALID_STATUSES = ['scheduled', 'completed', 'cancelled', 'no_show', 'pending'];
+const VALID_STATUSES = ['scheduled', 'completed', 'cancelled', 'no_show', 'pending', 'awaiting_payment'];
 
 const isValidPositiveId = (value) => Number.isInteger(Number(value)) && Number(value) > 0;
 
@@ -188,6 +190,7 @@ const bookSlotAppointment = async (req, res) => {
 
 const listMyAppointments = async (req, res) => {
   try {
+    await paymentService.expireOverduePayments();
     const patient = await appointmentModel.getPatientByUserId(req.user.id);
     if (!patient) {
       return res.status(200).json({ appointments: [] });
@@ -205,6 +208,7 @@ const listMyAppointments = async (req, res) => {
 
 const listAppointments = async (req, res) => {
   try {
+    await paymentService.expireOverduePayments();
     const { status } = req.query;
 
     if (status && !VALID_STATUSES.includes(status)) {
@@ -255,19 +259,46 @@ const approveAppointment = async (req, res) => {
       return res.status(403).json({ error: 'You do not have permission to approve this appointment' });
     }
 
+    const doctor = await appointmentModel.getDoctorById(appointment.doctor_id);
+    const fee = Number(doctor && doctor.consultation_fee) || 0;
+    const requiresPayment = fee > 0;
+    const newStatus = requiresPayment ? 'awaiting_payment' : 'scheduled';
+    const paymentDueAt = requiresPayment
+      ? paymentService.paymentDueFor(appointment.appointment_date)
+      : null;
+    const amountDueCents = requiresPayment ? Math.round(fee * 100) : null;
+
     const updated = await db.withTransaction(async (client) => {
-      const row = await appointmentModel.updateAppointmentStatus(appointment.id, 'scheduled', client);
+      const row = requiresPayment
+        ? await appointmentModel.setAppointmentAwaitingPayment(
+          appointment.id,
+          paymentDueAt,
+          amountDueCents,
+          client
+        )
+        : await appointmentModel.updateAppointmentStatus(appointment.id, 'scheduled', client);
       await adminModel.createAuditLog({
         action: 'appointment_approved',
         appointment_id: appointment.id,
         old_status: appointment.status,
-        new_status: 'scheduled',
+        new_status: newStatus,
         performed_by: req.user.id,
       }, client);
       return row;
     });
-    void sendAppointmentDecisionEmail(updated.id, 'approve');
-    res.status(200).json({ message: 'Appointment approved', appointment: updated });
+
+    if (requiresPayment) {
+      void paymentService.notifyPaymentRequired(updated.id);
+    } else {
+      void sendAppointmentDecisionEmail(updated.id, 'approve');
+    }
+
+    res.status(200).json({
+      message: requiresPayment
+        ? 'Appointment approved. The patient must pay to confirm the slot.'
+        : 'Appointment approved',
+      appointment: updated,
+    });
   } catch (error) {
     if (error.code === '22P02') {
       return res.status(400).json({ error: 'Invalid ID format provided' });
@@ -326,6 +357,13 @@ const cancelAppointment = async (req, res) => {
       return res.status(404).json({ error: 'Appointment not found' });
     }
 
+    const paid = await paymentModel.getPaidTransactionForAppointment(appointment.id);
+    if (paid) {
+      return res.status(400).json({
+        error: 'This appointment has already been paid. Contact the clinic to cancel or request a refund.',
+      });
+    }
+
     const apptDate = new Date(appointment.appointment_date);
     const minHours = Number(process.env.CANCEL_MIN_HOURS) || 24;
     const hoursUntil = (apptDate.getTime() - Date.now()) / 3600000;
@@ -354,6 +392,7 @@ const cancelAppointment = async (req, res) => {
         if (appointment.slot_id) {
           await availabilityModel.setSlotStatus(appointment.slot_id, 'open', client);
         }
+        await paymentModel.markPendingTransactionsExpired(appointment.id, client);
         return row;
       });
       return res.status(200).json({ message: 'Appointment cancelled', appointment: updated });
@@ -375,6 +414,7 @@ const cancelAppointment = async (req, res) => {
       if (appointment.slot_id) {
         await availabilityModel.setSlotStatus(appointment.slot_id, 'open', client);
       }
+      await paymentModel.markPendingTransactionsExpired(appointment.id, client);
       return row;
     });
     res.status(200).json({ message: 'Appointment cancelled', appointment: updated });

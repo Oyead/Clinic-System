@@ -27,7 +27,7 @@ function ExistsHint({ error }) {
 
 export function PatientSignupForm({ onSignedIn }) {
   const { signup } = useAuth();
-  const [form, setForm] = useState({ email: '', password: '', name: '' });
+  const [form, setForm] = useState({ email: '', password: '', name: '', phone_number: '' });
   const [error, setError] = useState('');
   const [exists, setExists] = useState(false);
 
@@ -36,6 +36,7 @@ export function PatientSignupForm({ onSignedIn }) {
     const email = form.email.trim();
     const password = form.password;
     const name = form.name.trim();
+    const phone_number = form.phone_number.trim();
     if (!email || !password) {
       setExists(false);
       setError('Email and password are required.');
@@ -44,9 +45,9 @@ export function PatientSignupForm({ onSignedIn }) {
     setError('');
     setExists(false);
     try {
-      const result = await signup({ email, password, name });
+      const result = await signup({ email, password, name, phone_number });
       if (result.ok) {
-        setForm({ email: '', password: '', name: '' });
+        setForm({ email: '', password: '', name: '', phone_number: '' });
         onSignedIn?.(result.user);
       } else if (result.exists) {
         setExists(true);
@@ -72,6 +73,10 @@ export function PatientSignupForm({ onSignedIn }) {
       <label className={LABEL}>
         Full name <span className="font-medium text-[var(--color-ink-soft)]">optional, needed for booking appointments</span>
         <input type="text" autoComplete="name" className={FORM_INPUT} {...bind(form, setForm, setError, 'name')} />
+      </label>
+      <label className={LABEL}>
+        Phone <span className="font-medium text-[var(--color-ink-soft)]">needed for online payment</span>
+        <input type="tel" autoComplete="tel" className={FORM_INPUT} placeholder="+20 100 000 0000" {...bind(form, setForm, setError, 'phone_number')} />
       </label>
       {error && (
         <p className={ERROR} role="alert">

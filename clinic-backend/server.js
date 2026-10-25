@@ -23,6 +23,7 @@ const adminRoutes = require('./src/routes/adminRoutes');
 const appointmentRoutes = require('./src/routes/appointmentRoutes');
 const availabilityRoutes = require('./src/routes/availabilityRoutes');
 const ownerRoutes = require('./src/routes/ownerRoutes');
+const paymentRoutes = require('./src/routes/paymentRoutes');
 const { requireAuth, requireAdmin, requireRole } = require('./src/middleware/auth');
 
 app.use('/api/v1/auth', authRoutes);
@@ -30,6 +31,7 @@ app.use('/api/v1/admin', requireAuth, requireAdmin, adminRoutes);
 app.use('/api/v1/appointments', requireAuth, appointmentRoutes);
 app.use('/api/v1/availability', requireAuth, availabilityRoutes);
 app.use('/api/v1/owner', requireAuth, requireRole('clinic_owner'), ownerRoutes);
+app.use('/api/v1/payments', paymentRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'API operational' });
@@ -44,9 +46,20 @@ app.get(/^(?!\/api\/).*/, (req, res, next) => {
   });
 });
 
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
+
+  const { expireOverduePayments } = require('./src/services/paymentService');
+  const sweep = () => {
+    expireOverduePayments()
+      .then((rows) => {
+        if (rows.length) console.log(`Payment sweep: expired ${rows.length} appointment(s).`);
+      })
+      .catch((error) => console.warn('Payment sweep failed:', error.message));
+  };
+  sweep();
+  setInterval(sweep, 5 * 60 * 1000).unref();
 
   try {
     const { ensureSuperAdmin } = require('./src/utils/bootstrapAdmin');

@@ -12,6 +12,7 @@ const {
 } = require('../utils/invites');
 const { parseDateRange } = require('../utils/range');
 const { sendAppointmentDecisionEmail } = require('../utils/appointmentEmail');
+const paymentService = require('../services/paymentService');
 
 const normalizeEmail = (email) =>
   typeof email === 'string' ? email.trim().toLowerCase() : email;
@@ -338,6 +339,49 @@ const removeStaff = async (req, res) => {
   return offboardStaff(req, res);
 };
 
+const setDoctorFee = async (req, res) => {
+  try {
+    const gate = await assertCanManageClinic(req.user, req.clinicId);
+    if (!gate.ok) return res.status(gate.status).json({ error: gate.error });
+
+    const doctorId = Number(req.params.doctorId);
+    const fee = Number(req.body && req.body.consultation_fee);
+    if (!Number.isInteger(doctorId) || doctorId <= 0) {
+      return res.status(400).json({ error: 'Invalid doctor ID' });
+    }
+    if (!Number.isFinite(fee) || fee < 0 || fee > 1000000) {
+      return res.status(400).json({ error: 'consultation_fee must be between 0 and 1,000,000' });
+    }
+
+    const doctor = await appointmentModel.getDoctorById(doctorId);
+    if (!doctor || Number(doctor.clinic_id) !== Number(req.clinicId)) {
+      return res.status(404).json({ error: 'Doctor not found in your clinic' });
+    }
+
+    const updated = await db.withTransaction(async (client) => {
+      const result = await client.query(
+        `UPDATE doctors
+         SET consultation_fee = $1
+         WHERE id = $2 AND clinic_id = $3
+         RETURNING id, clinic_id, name, specialization, consultation_fee;`,
+        [fee.toFixed(2), doctorId, req.clinicId]
+      );
+      await adminModel.createAuditLog({
+        action: 'doctor_fee_updated',
+        target_user_id: doctor.user_id,
+        target_email: doctor.name,
+        performed_by: req.user.id,
+        clinic_id: req.clinicId,
+      }, client);
+      return result.rows[0];
+    });
+
+    res.status(200).json({ message: 'Consultation fee updated.', doctor: updated });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 const parseDateParam = (value, name, res) => {
   if (!value) return { ok: true, date: null };
   const date = new Date(value);
@@ -350,8 +394,9 @@ const parseDateParam = (value, name, res) => {
 
 const listQueue = async (req, res) => {
   try {
+    await paymentService.expireOverduePayments();
     const { status } = req.query;
-    const VALID_STATUSES = ['scheduled', 'completed', 'cancelled', 'no_show', 'pending'];
+    const VALID_STATUSES = ['scheduled', 'completed', 'cancelled', 'no_show', 'pending', 'awaiting_payment'];
     if (status && !VALID_STATUSES.includes(status)) {
       return res.status(400).json({ error: `status must be one of: ${VALID_STATUSES.join(', ')}` });
     }
@@ -380,9 +425,28 @@ const decideAppointment = (decision) => async (req, res) => {
       });
     }
 
-    const newStatus = decision === 'approve' ? 'scheduled' : 'cancelled';
+    const doctor = decision === 'approve'
+      ? await appointmentModel.getDoctorById(appointment.doctor_id)
+      : null;
+    const fee = Number(doctor && doctor.consultation_fee) || 0;
+    const requiresPayment = decision === 'approve' && fee > 0;
+    const newStatus = decision === 'approve'
+      ? (requiresPayment ? 'awaiting_payment' : 'scheduled')
+      : 'cancelled';
+    const paymentDueAt = requiresPayment
+      ? paymentService.paymentDueFor(appointment.appointment_date)
+      : null;
+    const amountDueCents = requiresPayment ? Math.round(fee * 100) : null;
+
     const updated = await db.withTransaction(async (client) => {
-      const row = await appointmentModel.updateAppointmentStatus(appointment.id, newStatus, client);
+      const row = requiresPayment
+        ? await appointmentModel.setAppointmentAwaitingPayment(
+          appointment.id,
+          paymentDueAt,
+          amountDueCents,
+          client
+        )
+        : await appointmentModel.updateAppointmentStatus(appointment.id, newStatus, client);
       await adminModel.createAuditLog({
         action: decision === 'approve' ? 'appointment_approved' : 'appointment_rejected',
         appointment_id: appointment.id,
@@ -397,10 +461,18 @@ const decideAppointment = (decision) => async (req, res) => {
       return row;
     });
 
-    void sendAppointmentDecisionEmail(updated.id, decision);
+    if (requiresPayment) {
+      void paymentService.notifyPaymentRequired(updated.id);
+    } else {
+      void sendAppointmentDecisionEmail(updated.id, decision);
+    }
 
     res.status(200).json({
-      message: decision === 'approve' ? 'Appointment approved' : 'Appointment rejected',
+      message: decision === 'approve'
+        ? (requiresPayment
+          ? 'Appointment approved. The patient must pay to confirm the slot.'
+          : 'Appointment approved')
+        : 'Appointment rejected',
       appointment: updated,
     });
   } catch (error) {
@@ -448,6 +520,7 @@ module.exports = {
   offboardStaff,
   suspendStaff,
   removeStaff,
+  setDoctorFee,
   listQueue,
   decideAppointment,
   reportsAppointments,

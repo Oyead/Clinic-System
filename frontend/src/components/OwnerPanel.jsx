@@ -22,6 +22,7 @@ export function OwnerPanel() {
   const [clinics, setClinics] = useState([]);
   const [clinicId, setClinicId] = useState('');
   const [staff, setStaff] = useState(null);
+  const [feeDrafts, setFeeDrafts] = useState({});
   const [invites, setInvites] = useState(null);
   const [refreshToken, setRefreshToken] = useState(0);
   const [inviteForm, setInviteForm] = useState({ email: '', role: 'doctor', name: '', specialization: '' });
@@ -67,6 +68,11 @@ export function OwnerPanel() {
       }
       const data = await res.json();
       setStaff(data.staff);
+      setFeeDrafts(Object.fromEntries(
+        (data.staff || [])
+          .filter((member) => member.role === 'doctor' && member.doctor_id)
+          .map((member) => [member.doctor_id, String(member.consultation_fee ?? '0')]),
+      ));
     } catch (err) {
       notify(err.message, 'error');
     }
@@ -160,6 +166,34 @@ export function OwnerPanel() {
         loadInvites(clinicId);
       } else {
         notify(payload.error || 'Creating invite failed.', 'error');
+      }
+    } catch (err) {
+      notify(err.message, 'error');
+    }
+  };
+
+  const saveFee = async (doctorId) => {
+    const value = Number(feeDrafts[doctorId]);
+    if (!Number.isFinite(value) || value < 0) {
+      notify('Enter a valid consultation fee.', 'error');
+      return;
+    }
+    try {
+      const res = await ownerApi(`/clinics/${clinicId}/doctors/${doctorId}/fee`, {
+        method: 'PATCH',
+        body: JSON.stringify({ consultation_fee: value }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (res.ok) {
+        notify('Consultation fee updated.', 'success');
+        loadStaff(clinicId);
+        setAllDoctors((doctors) => doctors.map((doctor) => (
+          Number(doctor.id) === Number(doctorId)
+            ? { ...doctor, consultation_fee: payload.doctor?.consultation_fee ?? value }
+            : doctor
+        )));
+      } else {
+        notify(payload.error || 'Updating the fee failed.', 'error');
       }
     } catch (err) {
       notify(err.message, 'error');
@@ -396,6 +430,21 @@ export function OwnerPanel() {
                         <span className={statusPill(s.status || (s.is_active ? 'active' : 'inactive'))}>{s.status || (s.is_active ? 'active' : 'inactive')}</span>
                       </span>
                       <span className="flex w-full flex-wrap gap-2 sm:w-auto">
+                        {s.role === 'doctor' && s.doctor_id && (
+                          <span className="flex items-center gap-1.5">
+                            <span className="text-[0.7rem] font-bold uppercase tracking-[0.08em] text-[var(--color-ink-soft)]">Fee</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              className={`${FORM_INPUT} h-9 w-24 bg-white px-2 text-xs`}
+                              value={feeDrafts[s.doctor_id] ?? ''}
+                              onChange={(e) => setFeeDrafts((drafts) => ({ ...drafts, [s.doctor_id]: e.target.value }))}
+                              aria-label={`Consultation fee for ${s.email}`}
+                            />
+                            <button type="button" className={`${BTN_GHOST} px-3 py-1.5 text-xs`} onClick={() => saveFee(s.doctor_id)}>Save fee</button>
+                          </span>
+                        )}
                         {s.status === 'active' && (
                           <button type="button" className={`${BTN_DANGER} px-3.5 py-1.5 text-xs`} onClick={() => suspendStaff(s.user_id)}>Suspend</button>
                         )}

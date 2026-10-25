@@ -22,7 +22,7 @@ const getClinicById = async (id) => {
 
 const getDoctorById = async (id) => {
   const query = `
-    SELECT id, user_id, clinic_id, name, specialization, duration_minutes
+    SELECT id, user_id, clinic_id, name, specialization, duration_minutes, consultation_fee
     FROM doctors
     WHERE id = $1;
   `;
@@ -56,7 +56,7 @@ const getAppointmentConflict = async (doctorId, appointmentDate) => {
     FROM appointments
     WHERE doctor_id = $1
       AND appointment_date = $2
-      AND status IN ('pending', 'scheduled')
+      AND status IN ('pending', 'scheduled', 'awaiting_payment')
     LIMIT 1;
   `;
   const result = await db.query(query, [doctorId, appointmentDate]);
@@ -68,7 +68,7 @@ const getAppointmentOverlap = async (doctorId, start, end) => {
     SELECT id
     FROM appointments
     WHERE doctor_id = $1
-      AND status IN ('pending', 'scheduled')
+      AND status IN ('pending', 'scheduled', 'awaiting_payment')
       AND tsrange(appointment_date, ends_at, '[)') && tsrange($2::timestamp, $3::timestamp, '[)')
     LIMIT 1;
   `;
@@ -121,7 +121,8 @@ const getAppointmentNotificationById = async (id) => {
     SELECT a.id, a.appointment_date, a.duration_minutes, a.status, a.reason,
            p.name AS patient_name,
            COALESCE(NULLIF(TRIM(p.email), ''), u.email) AS patient_email,
-           d.name AS doctor_name, d.specialization,
+           d.name AS doctor_name, d.specialization, d.consultation_fee,
+           a.payment_due_at, a.amount_due_cents,
            c.name AS clinic_name, c.address AS clinic_address,
            c.phone_number AS clinic_phone, c.email AS clinic_email
     FROM appointments a
@@ -143,6 +144,19 @@ const updateAppointmentStatus = async (id, status, client = db) => {
     RETURNING *;
   `;
   const result = await client.query(query, [id, status]);
+  return result.rows[0];
+};
+
+const setAppointmentAwaitingPayment = async (id, paymentDueAt, amountDueCents, client = db) => {
+  const query = `
+    UPDATE appointments
+    SET status = 'awaiting_payment',
+        payment_due_at = $2,
+        amount_due_cents = $3
+    WHERE id = $1
+    RETURNING *;
+  `;
+  const result = await client.query(query, [id, paymentDueAt, amountDueCents]);
   return result.rows[0];
 };
 
@@ -247,7 +261,7 @@ const listClinics = async () => {
 
 const listDoctors = async () => {
   const result = await db.query(
-    `SELECT id, clinic_id, name, specialization, duration_minutes
+    `SELECT id, clinic_id, name, specialization, duration_minutes, consultation_fee
      FROM doctors
      ORDER BY id;`
   );
@@ -269,7 +283,7 @@ const listClinicsByIds = async (ids) => {
 const listDoctorsByClinicIds = async (ids) => {
   if (!ids || !ids.length) return [];
   const result = await db.query(
-    `SELECT id, clinic_id, name, specialization, duration_minutes
+    `SELECT id, clinic_id, name, specialization, duration_minutes, consultation_fee
      FROM doctors
      WHERE clinic_id = ANY($1::int[])
      ORDER BY id;`,
@@ -291,6 +305,7 @@ module.exports = {
   getAppointmentById,
   getAppointmentNotificationById,
   updateAppointmentStatus,
+  setAppointmentAwaitingPayment,
   listAppointmentsByPatientId,
   listAppointmentsByDoctorId,
   listAppointments,
