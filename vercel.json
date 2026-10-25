@@ -1,5 +1,4 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
   "services": {
     "clinic-backend": {
       "root": "clinic-backend",
@@ -18,7 +17,7 @@
       }
     },
     {
-      "source": "//(.*)",
+      "source": "/(.*)",
       "destination": {
         "service": "frontend"
       }
