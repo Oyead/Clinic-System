@@ -2,12 +2,17 @@ const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../../../.env') });
 const { Pool } = require('pg');
 
+let connectionString = process.env.DATABASE_URL;
+
+if (connectionString && !connectionString.includes('sslmode=')) {
+  connectionString += (connectionString.includes('?') ? '&' : '?') + 'sslmode=require';
+}
+
 const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 5432,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
+  connectionString,
+  ssl: {
+    rejectUnauthorized: false,
+  },
 });
 
 pool.query('SELECT current_database()', (err, res) => {
